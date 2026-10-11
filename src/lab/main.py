@@ -12,7 +12,6 @@ from lab.apps.bare_agent.shared.di.infra import (
     run_agent_worker,
 )
 from lab.apps.bare_agent.shared.presentation import bare_agent_app_router
-from lab.apps.lc_deep_agent.shared.presentation import lc_deep_agent_router
 from lab.apps.todo.shared.presentation import todo_app_router
 from lab.shared.errors.domain import DomainError
 from lab.shared.errors.presentation import (
@@ -45,9 +44,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(bare_agent_app_router, prefix="/bare-agent", tags=["bare-agent"])
-app.include_router(
-    lc_deep_agent_router, prefix="/lc-deep-agent", tags=["lc-deep-agent"]
-)
 app.include_router(todo_app_router, prefix="/todo", tags=["todo"])
 
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
