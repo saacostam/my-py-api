@@ -60,7 +60,7 @@ async def get_all_chats() -> list[LeanChatResponse]:
     ]
 
 
-@agent_router.get("/{chat_id}", response_model=GetAgentResponse)
+@agent_router.get("/id/{chat_id}", response_model=GetAgentResponse)
 async def get_agent(
     chat_id: Annotated[str, Path()],
 ) -> GetAgentResponse:
