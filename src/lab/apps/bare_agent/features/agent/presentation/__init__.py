@@ -11,8 +11,8 @@ from lab.apps.bare_agent.shared.di.infra import (
 )
 
 from .schema import (
+    ChatIdentifierResponse,
     CreateAgentRequest,
-    CreateAgentResponse,
     GetAgentResponse,
     LeanChatResponse,
     TurnResponse,
@@ -25,13 +25,26 @@ class EventSubscriber(Protocol):
     def subscribe(self, id: str) -> AsyncIterator[str]: ...
 
 
-@agent_router.post("/", response_model=CreateAgentResponse)
+@agent_router.post("/", response_model=ChatIdentifierResponse)
 async def create_agent(
     request: CreateAgentRequest,
-) -> CreateAgentResponse:
+) -> ChatIdentifierResponse:
     result = await agent_use_cases.create(message=request.message)
 
-    return CreateAgentResponse(chat_id=result.chat_id)
+    return ChatIdentifierResponse(chat_id=result.chat_id)
+
+
+@agent_router.post("/{chat_id}/resume", response_model=ChatIdentifierResponse)
+async def resume_agent(
+    chat_id: Annotated[str, Path()],
+    request: CreateAgentRequest,
+) -> ChatIdentifierResponse:
+    result = await agent_use_cases.resume(
+        chat_id=chat_id,
+        message=request.message,
+    )
+
+    return ChatIdentifierResponse(chat_id=result.chat_id)
 
 
 @agent_router.get("/", response_model=list[LeanChatResponse])

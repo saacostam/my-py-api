@@ -75,8 +75,17 @@ class AgentUseCases:
     async def resume(self, chat_id: str, message: str) -> ChatIdentifier:
         chat = await self._get_owned_chat_by_id(chat_id=chat_id)
 
+        chat.turns.append(
+            Turn(
+                id=self._id_generator.gen(),
+                type=TurnType.USER,
+                content=message,
+            )
+        )
+        updated_chat = await self._chat_repo.update(chat_id=chat.id, chat=chat)
+
         chain_identifier = await self._start_chain_of_though(
-            chat_id=chat.id,
+            chat_id=updated_chat.id,
             message=message,
         )
 

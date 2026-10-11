@@ -7,7 +7,7 @@ class CreateAgentRequest(BaseModel):
     message: str
 
 
-class CreateAgentResponse(BaseModel):
+class ChatIdentifierResponse(BaseModel):
     chat_id: str
 
 

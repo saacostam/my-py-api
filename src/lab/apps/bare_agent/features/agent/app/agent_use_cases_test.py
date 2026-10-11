@@ -171,6 +171,7 @@ async def test_get_by_id_chat_not_found() -> None:
 async def test_resume_agent_success() -> None:
     id_generator = mock_id_generator()
     id_generator.gen.side_effect = [
+        "turn-id-456",
         "cot-id-123",
         "queue-entry-id-123",
     ]
@@ -188,6 +189,7 @@ async def test_resume_agent_success() -> None:
         ],
     )
     chat_repo.get_by_id.return_value = existing_chat
+    chat_repo.update.return_value = existing_chat
 
     cot_repo = mock_chain_of_thought_repository()
     created_cot = ChainOfThought(
@@ -216,6 +218,24 @@ async def test_resume_agent_success() -> None:
 
     chat_repo.get_by_id.assert_awaited_once_with(id="chat-id-123")
 
+    assert existing_chat.turns == [
+        Turn(
+            id="turn-id-123",
+            type=TurnType.USER,
+            content="Hello",
+        ),
+        Turn(
+            id="turn-id-456",
+            type=TurnType.USER,
+            content="How are you?",
+        ),
+    ]
+
+    chat_repo.update.assert_awaited_once_with(
+        chat_id="chat-id-123",
+        chat=existing_chat,
+    )
+
     cot_repo.create.assert_awaited_once_with(created_cot)
 
     queue.add.assert_awaited_once_with(
@@ -227,7 +247,7 @@ async def test_resume_agent_success() -> None:
         )
     )
 
-    assert id_generator.gen.call_count == 2
+    assert id_generator.gen.call_count == 3
 
 
 async def test_resume_agent_chat_not_found() -> None:
