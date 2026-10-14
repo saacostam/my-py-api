@@ -46,8 +46,17 @@ class UserSSEEventEmitter:
                     yield ": keep-alive\n\n"
                     continue
 
-                data = json.dumps(asdict(event))
-                yield f"event: {event.type}\ndata: {data}\n\n"
+                data = json.dumps(
+                    {
+                        "type": event.type,
+                        "data": {
+                            key: value
+                            for key, value in asdict(event).items()
+                            if key != "type"
+                        },
+                    }
+                )
+                yield f"data: {data}\n\n"
         finally:
             async with self._lock:
                 queues = self._connections.get(id)
