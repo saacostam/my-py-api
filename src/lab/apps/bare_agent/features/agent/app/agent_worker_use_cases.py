@@ -11,7 +11,10 @@ from lab.apps.bare_agent.features.chat.domain import (
     TurnType,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
+    EventCompleted,
+    EventCreated,
     EventEmitter,
+    EventError,
     EventMessage,
     IdGenerator,
     LLMProvider,
@@ -141,23 +144,52 @@ class AgentWorkerUseCases:
             ],
         ]
 
-        result = await self._llm.generate(
-            messages=messages,
-            output_schema=AgentResponse,
-        )
-        response = result.content
-
-        self._logger.info(f"Worker.response.{chat_id}.{cot_id} Response generated")
+        turn_id = self._id_generator.gen()
 
         chat.turns.append(
             Turn(
-                id=self._id_generator.gen(),
+                id=turn_id,
                 type=TurnType.ASSISTANT,
-                content=response,
+                content="",
             )
         )
 
-        await self._user_event_emitter.send(
-            id=chat.user_id,
-            event=EventMessage(content=response, type="message"),
+        await self._chat_repo.update(chat_id=chat_id, chat=chat)
+
+        async def on_created() -> None:
+            await self._user_event_emitter.send(
+                id=chat.user_id,
+                event=EventCreated(turn_id=turn_id),
+            )
+
+        async def on_message(chunk: str) -> None:
+            # Persist the chunk before notifying the client.
+            await self._chat_repo.append_chunk_to_turn(
+                chat_id=chat_id,
+                turn_id=turn_id,
+                chunk=chunk,
+            )
+            await self._user_event_emitter.send(
+                id=chat.user_id,
+                event=EventMessage(content=chunk, turn_id=turn_id),
+            )
+
+        async def on_completed() -> None:
+            await self._user_event_emitter.send(
+                id=chat.user_id,
+                event=EventCompleted(turn_id=turn_id),
+            )
+
+        async def on_error(error: str) -> None:
+            await self._user_event_emitter.send(
+                id=chat.user_id,
+                event=EventError(message=error, turn_id=turn_id),
+            )
+
+        await self._llm.stream(
+            messages=messages,
+            onCreated=on_created,
+            onMessage=on_message,
+            onCompleted=on_completed,
+            onError=on_error,
         )
