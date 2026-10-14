@@ -1,3 +1,5 @@
+from collections.abc import Awaitable, Callable
+
 from openai import AsyncOpenAI
 
 from lab.apps.bare_agent.shared.adapters.domain import (
@@ -35,3 +37,40 @@ class OpenAiLLMProvider(LLMProvider):
             raise ValueError("OpenAI did not return a structured output.")
 
         return result
+
+    async def stream(
+        self,
+        messages: list[Message],
+        onCreated: Callable[[], Awaitable[None]],
+        onMessage: Callable[[str], Awaitable[None]],
+        onCompleted: Callable[[], Awaitable[None]],
+        onError: Callable[[str], Awaitable[None]],
+    ) -> None:
+        stream = await self._client.responses.create(
+            model=self._model,
+            input=[
+                {
+                    "role": message.role.value,
+                    "content": message.content,
+                }
+                for message in messages
+            ],
+            stream=True,
+        )
+
+        async for event in stream:
+            if event.type == "response.created":
+                await onCreated()
+            elif event.type == "response.output_text.delta":
+                await onMessage(event.delta)
+            elif event.type == "error":
+                message = event.message
+                await onError(message)
+                raise RuntimeError(f"OpenAI stream failed: {message}")
+
+            elif event.type == "response.failed":
+                message = str(event.response)
+                await onError(message)
+                raise RuntimeError(f"OpenAI response failed: {message}")
+            elif event.type == "response.completed":
+                await onCompleted()

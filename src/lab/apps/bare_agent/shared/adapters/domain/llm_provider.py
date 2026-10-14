@@ -1,3 +1,4 @@
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol, TypeVar
@@ -26,3 +27,12 @@ class LLMProvider(Protocol):
         messages: list[Message],
         output_schema: type[OutputT],
     ) -> OutputT: ...
+
+    async def stream(
+        self,
+        messages: list[Message],
+        onCreated: Callable[[], Awaitable[None]],
+        onMessage: Callable[[str], Awaitable[None]],
+        onCompleted: Callable[[], Awaitable[None]],
+        onError: Callable[[str], Awaitable[None]],
+    ) -> None: ...
