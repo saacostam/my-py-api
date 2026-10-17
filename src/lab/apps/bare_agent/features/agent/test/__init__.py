@@ -1,9 +1,3 @@
-from unittest.mock import Mock
+from .mock_deps import mock_chain_of_thought_repository
 
-from lab.apps.bare_agent.features.agent.domain import (
-    ChainOfThoughtRepository,
-)
-
-
-def mock_chain_of_thought_repository():
-    return Mock(spec=ChainOfThoughtRepository)
+__all__ = ["mock_chain_of_thought_repository"]
