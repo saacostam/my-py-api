@@ -214,6 +214,16 @@ async def test_response_success() -> None:
     llm = mock_llm_provider()
     event_emitter = mock_event_emitter()
 
+    async def send_side_effect(*, id, event) -> None:
+        if isinstance(event, EventCompleted):
+            # The final turn state must be persisted before completion is emitted.
+            chat_repo.update_turn.assert_awaited_once()
+            update_payload = chat_repo.update_turn.await_args.kwargs["turn"]
+            assert update_payload.content == "Hello world"
+            assert update_payload.status == TurnStatus.SUCCESS
+
+    event_emitter.send.side_effect = send_side_effect
+
     async def stream_side_effect(
         *, messages, onCreated, onMessage, onCompleted, onError
     ) -> None:
@@ -242,17 +252,35 @@ async def test_response_success() -> None:
     await use_cases.response(chat_id="chat-id-123", cot_id="cot-id-123")
 
     chat_repo.get_by_id.assert_awaited_once_with(id="chat-id-123")
-    assert chat_repo.update.await_count == 2
-    assert all(
-        update_call.kwargs == {"chat_id": "chat-id-123", "chat": existing_chat}
-        for update_call in chat_repo.update.await_args_list
+    assert chat_repo.update.await_count == 1
+    chat_repo.update.assert_awaited_once_with(
+        chat_id="chat-id-123",
+        chat=Chat(
+            id="chat-id-123",
+            user_id="public",
+            turns=[
+                Turn(
+                    id="user-turn-id-123",
+                    type=TurnType.USER,
+                    content="Hello",
+                    status=TurnStatus.SUCCESS,
+                ),
+                Turn(
+                    id="turn-id-123",
+                    type=TurnType.ASSISTANT,
+                    content="",
+                    status=TurnStatus.PROCESSING,
+                ),
+            ],
+        ),
     )
-    assert existing_chat.turns[-1] == Turn(
-        id="turn-id-123",
-        type=TurnType.ASSISTANT,
-        content="",
-        status=TurnStatus.SUCCESS,
-    )
+
+    chat_repo.update_turn.assert_awaited_once()
+    update_call = chat_repo.update_turn.await_args
+    assert update_call.kwargs["id"] == "chat-id-123"
+    assert update_call.kwargs["turn_id"] == "turn-id-123"
+    assert update_call.kwargs["turn"].content == "Hello world"
+    assert update_call.kwargs["turn"].status == TurnStatus.SUCCESS
 
     assert chunk_buffer_repo.create.await_args_list == [
         call(Chunk(index=0, turn_id="turn-id-123", content="Hello")),
@@ -312,10 +340,22 @@ async def test_response_stream_error_emits_error_event() -> None:
     llm = mock_llm_provider()
     event_emitter = mock_event_emitter()
 
+    async def send_side_effect(*, id, event) -> None:
+        if isinstance(event, EventError):
+            # The error state and partial content must be persisted first.
+            chat_repo.update_turn.assert_awaited_once()
+            update_payload = chat_repo.update_turn.await_args.kwargs["turn"]
+            assert update_payload.content == "Partial response"
+            assert update_payload.status == TurnStatus.ERROR
+
+    event_emitter.send.side_effect = send_side_effect
+
     async def stream_side_effect(
         *, messages, onCreated, onMessage, onCompleted, onError
     ) -> None:
         await onCreated()
+        await onMessage("Partial ", 0)
+        await onMessage("response", 1)
         await onError("Generation failed")
 
     llm.stream.side_effect = stream_side_effect
@@ -330,19 +370,58 @@ async def test_response_stream_error_emits_error_event() -> None:
 
     await use_cases.response(chat_id="chat-id-123", cot_id="cot-id-123")
 
-    assert chat_repo.update.await_count == 2
-    assert existing_chat.turns[-1] == Turn(
-        id="turn-id-123",
-        type=TurnType.ASSISTANT,
-        content="",
-        status=TurnStatus.ERROR,
+    chat_repo.get_by_id.assert_awaited_once_with(id="chat-id-123")
+    assert chat_repo.update.await_count == 1
+    chat_repo.update.assert_awaited_once_with(
+        chat_id="chat-id-123",
+        chat=Chat(
+            id="chat-id-123",
+            user_id="public",
+            turns=[
+                Turn(
+                    id="user-turn-id-123",
+                    type=TurnType.USER,
+                    content="Hello",
+                    status=TurnStatus.SUCCESS,
+                ),
+                Turn(
+                    id="turn-id-123",
+                    type=TurnType.ASSISTANT,
+                    content="",
+                    status=TurnStatus.PROCESSING,
+                ),
+            ],
+        ),
     )
-    chunk_buffer_repo.create.assert_not_awaited()
+
+    chat_repo.update_turn.assert_awaited_once()
+    update_call = chat_repo.update_turn.await_args
+    assert update_call.kwargs["id"] == "chat-id-123"
+    assert update_call.kwargs["turn_id"] == "turn-id-123"
+    assert update_call.kwargs["turn"].content == "Partial response"
+    assert update_call.kwargs["turn"].status == TurnStatus.ERROR
+
+    assert chunk_buffer_repo.create.await_args_list == [
+        call(Chunk(index=0, turn_id="turn-id-123", content="Partial ")),
+        call(Chunk(index=1, turn_id="turn-id-123", content="response")),
+    ]
+
     assert event_emitter.send.await_args_list == [
         call(id="public", event=EventCreated(turn_id="turn-id-123")),
         call(
             id="public",
-            event=EventError(message="Generation failed", turn_id="turn-id-123"),
+            event=EventMessage(content="Partial ", turn_id="turn-id-123"),
+        ),
+        call(
+            id="public",
+            event=EventMessage(content="response", turn_id="turn-id-123"),
+        ),
+        call(
+            id="public",
+            event=EventError(
+                message="Generation failed",
+                turn_id="turn-id-123",
+            ),
         ),
     ]
     id_generator.gen.assert_called_once_with()

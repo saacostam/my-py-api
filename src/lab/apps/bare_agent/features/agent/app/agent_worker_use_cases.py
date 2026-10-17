@@ -12,6 +12,7 @@ from lab.apps.bare_agent.features.chat.domain import (
     Turn,
     TurnStatus,
     TurnType,
+    UpdateTurnPayload,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
     EventCompleted,
@@ -159,7 +160,9 @@ class AgentWorkerUseCases:
             )
         )
 
-        updated_chat = await self._chat_repo.update(chat_id=chat_id, chat=chat)
+        await self._chat_repo.update(chat_id=chat_id, chat=chat)
+
+        full_response: list[str] = []
 
         async def on_created() -> None:
             await self._user_event_emitter.send(
@@ -168,6 +171,8 @@ class AgentWorkerUseCases:
             )
 
         async def on_message(chunk: str, index: int) -> None:
+            full_response.append(chunk)
+
             # Persist the chunk before notifying the client.
             await self._chunk_buffer_repo.create(
                 Chunk(
@@ -176,20 +181,20 @@ class AgentWorkerUseCases:
                     content=chunk,
                 )
             )
+
             await self._user_event_emitter.send(
                 id=chat.user_id,
                 event=EventMessage(content=chunk, turn_id=turn_id),
             )
 
         async def on_completed() -> None:
-            updated_turn = next(
-                turn for turn in updated_chat.turns if turn.id == turn_id
-            )
-            updated_turn.status = TurnStatus.SUCCESS
-
-            await self._chat_repo.update(
-                chat_id=chat_id,
-                chat=updated_chat,
+            await self._chat_repo.update_turn(
+                id=chat.id,
+                turn_id=turn_id,
+                turn=UpdateTurnPayload(
+                    status=TurnStatus.SUCCESS,
+                    content="".join(full_response),
+                ),
             )
 
             await self._user_event_emitter.send(
@@ -198,14 +203,12 @@ class AgentWorkerUseCases:
             )
 
         async def on_error(error: str) -> None:
-            updated_turn = next(
-                turn for turn in updated_chat.turns if turn.id == turn_id
-            )
-            updated_turn.status = TurnStatus.ERROR
-
-            await self._chat_repo.update(
-                chat_id=chat_id,
-                chat=updated_chat,
+            await self._chat_repo.update_turn(
+                id=chat.id,
+                turn_id=turn_id,
+                turn=UpdateTurnPayload(
+                    status=TurnStatus.ERROR, content="".join(full_response)
+                ),
             )
 
             await self._user_event_emitter.send(
