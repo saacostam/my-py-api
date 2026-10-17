@@ -56,7 +56,7 @@ class AgentUseCases:
                     id=self._id_generator.gen(),
                     type=TurnType.USER,
                     content=message,
-                    status=TurnStatus.PROCESSING,
+                    status=TurnStatus.SUCCESS,
                 )
             ],
         )
@@ -134,7 +134,7 @@ class AgentUseCases:
                 id=self._id_generator.gen(),
                 type=TurnType.USER,
                 content=message,
-                status=TurnStatus.PROCESSING,
+                status=TurnStatus.SUCCESS,
             )
         )
         updated_chat = await self._chat_repo.update(chat_id=chat.id, chat=chat)

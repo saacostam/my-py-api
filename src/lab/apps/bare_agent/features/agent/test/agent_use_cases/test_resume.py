@@ -79,7 +79,7 @@ async def test_resume_agent_success() -> None:
             id="turn-id-456",
             type=TurnType.USER,
             content="How are you?",
-            status=TurnStatus.PROCESSING,
+            status=TurnStatus.SUCCESS,
         ),
     ]
 

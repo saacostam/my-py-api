@@ -33,7 +33,7 @@ async def test_create_agent_success() -> None:
                 id="turn-id-123",
                 type=TurnType.USER,
                 content="Hello",
-                status=TurnStatus.PROCESSING,
+                status=TurnStatus.SUCCESS,
             )
         ],
     )
