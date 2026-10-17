@@ -32,7 +32,7 @@ class LLMProvider(Protocol):
         self,
         messages: list[Message],
         onCreated: Callable[[], Awaitable[None]],
-        onMessage: Callable[[str], Awaitable[None]],
+        onMessage: Callable[[str, int], Awaitable[None]],
         onCompleted: Callable[[], Awaitable[None]],
         onError: Callable[[str], Awaitable[None]],
     ) -> None: ...

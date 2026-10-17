@@ -42,7 +42,7 @@ class OpenAiLLMProvider(LLMProvider):
         self,
         messages: list[Message],
         onCreated: Callable[[], Awaitable[None]],
-        onMessage: Callable[[str], Awaitable[None]],
+        onMessage: Callable[[str, int], Awaitable[None]],
         onCompleted: Callable[[], Awaitable[None]],
         onError: Callable[[str], Awaitable[None]],
     ) -> None:
@@ -58,11 +58,13 @@ class OpenAiLLMProvider(LLMProvider):
             stream=True,
         )
 
+        index = 0
         async for event in stream:
             if event.type == "response.created":
                 await onCreated()
             elif event.type == "response.output_text.delta":
-                await onMessage(event.delta)
+                await onMessage(event.delta, index)
+                index += 1
             elif event.type == "error":
                 message = event.message
                 await onError(message)
