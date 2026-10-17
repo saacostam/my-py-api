@@ -56,6 +56,7 @@ chunk_buffer_repository: ChunkBufferRepository = MemoryChunkBufferRepository()
 cot_repo: ChainOfThoughtRepository = MemoryThoughtRepository()
 agent_use_cases = AgentUseCases(
     chat_repo=chat_repo,
+    chunk_buffer_repo=chunk_buffer_repository,
     cot_repo=cot_repo,
     id_generator=id_generator,
     queue=queue,

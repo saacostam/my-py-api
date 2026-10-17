@@ -3,7 +3,10 @@ from lab.apps.bare_agent.features.agent.test import mock_chain_of_thought_reposi
 from lab.apps.bare_agent.features.chat.domain import (
     LeanChat,
 )
-from lab.apps.bare_agent.features.chat.test import mock_chat_repository
+from lab.apps.bare_agent.features.chat.test import (
+    mock_chat_repository,
+    mock_chunk_buffer_repository,
+)
 from lab.apps.bare_agent.shared.adapters.test import mock_id_generator, mock_queue
 
 
@@ -17,6 +20,7 @@ async def test_get_all_chats_success() -> None:
 
     use_cases = AgentUseCases(
         chat_repo=chat_repo,
+        chunk_buffer_repo=mock_chunk_buffer_repository(),
         cot_repo=mock_chain_of_thought_repository(),
         id_generator=mock_id_generator(),
         queue=mock_queue(),
@@ -36,6 +40,7 @@ async def test_get_all_chats_empty() -> None:
 
     use_cases = AgentUseCases(
         chat_repo=chat_repo,
+        chunk_buffer_repo=mock_chunk_buffer_repository(),
         cot_repo=mock_chain_of_thought_repository(),
         id_generator=mock_id_generator(),
         queue=mock_queue(),

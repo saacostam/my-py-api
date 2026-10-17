@@ -7,7 +7,10 @@ from lab.apps.bare_agent.features.chat.domain import (
     TurnStatus,
     TurnType,
 )
-from lab.apps.bare_agent.features.chat.test import mock_chat_repository
+from lab.apps.bare_agent.features.chat.test import (
+    mock_chat_repository,
+    mock_chunk_buffer_repository,
+)
 from lab.apps.bare_agent.shared.adapters.domain import QueueEntry
 from lab.apps.bare_agent.shared.adapters.test import mock_id_generator, mock_queue
 
@@ -49,6 +52,7 @@ async def test_create_agent_success() -> None:
 
     use_cases = AgentUseCases(
         chat_repo=chat_repo,
+        chunk_buffer_repo=mock_chunk_buffer_repository(),
         cot_repo=cot_repo,
         id_generator=id_generator,
         queue=queue,
