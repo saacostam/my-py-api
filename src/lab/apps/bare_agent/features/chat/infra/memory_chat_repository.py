@@ -1,4 +1,9 @@
-from lab.apps.bare_agent.features.chat.domain import Chat, LeanChat, Turn
+from lab.apps.bare_agent.features.chat.domain import (
+    Chat,
+    LeanChat,
+    Turn,
+    UpdateTurnPayload,
+)
 
 
 class MemoryChatRepository:
@@ -35,12 +40,14 @@ class MemoryChatRepository:
         ]
         return chat
 
-    async def update_status(self, id: str, turn_id: str, turn: Turn) -> Turn:
+    async def update_turn(self, id: str, turn_id: str, turn: UpdateTurnPayload) -> None:
         for chat in self._chats:
             if chat.id == id:
-                chat.turns = [
-                    turn if curr_turn.id == turn_id else curr_turn
-                    for curr_turn in chat.turns
-                ]
-
-        return turn
+                for curr_turn in chat.turns:
+                    if curr_turn.id == turn_id:
+                        curr_turn = Turn(
+                            id=curr_turn.id,
+                            type=curr_turn.type,
+                            content=turn.content if turn.content else curr_turn.content,
+                            status=turn.status if turn.status else curr_turn.status,
+                        )
