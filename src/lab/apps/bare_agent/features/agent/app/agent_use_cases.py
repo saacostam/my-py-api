@@ -9,6 +9,7 @@ from lab.apps.bare_agent.features.chat.domain import (
     ChatRepository,
     LeanChat,
     Turn,
+    TurnStatus,
     TurnType,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
@@ -50,6 +51,7 @@ class AgentUseCases:
                     id=self._id_generator.gen(),
                     type=TurnType.USER,
                     content=message,
+                    status=TurnStatus.PROCESSING,
                 )
             ],
         )
@@ -80,6 +82,7 @@ class AgentUseCases:
                 id=self._id_generator.gen(),
                 type=TurnType.USER,
                 content=message,
+                status=TurnStatus.PROCESSING,
             )
         )
         updated_chat = await self._chat_repo.update(chat_id=chat.id, chat=chat)

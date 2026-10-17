@@ -5,25 +5,6 @@ class MemoryChatRepository:
     def __init__(self) -> None:
         self._chats: list[Chat] = []
 
-    async def append_chunk_to_turn(
-        self,
-        chat_id: str,
-        turn_id: str,
-        chunk: str,
-    ) -> bool:
-        for chat in self._chats:
-            if chat.id != chat_id:
-                continue
-
-            for turn in chat.turns:
-                if turn.id == turn_id:
-                    turn.content += chunk
-                    return True
-
-            return False
-
-        return False
-
     async def create(self, chat: Chat) -> Chat:
         self._chats.append(chat)
         return chat

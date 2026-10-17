@@ -7,7 +7,10 @@ from lab.apps.bare_agent.features.agent.domain import (
 )
 from lab.apps.bare_agent.features.chat.domain import (
     ChatRepository,
+    Chunk,
+    ChunkBufferRepository,
     Turn,
+    TurnStatus,
     TurnType,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
@@ -39,6 +42,7 @@ class AgentWorkerUseCases:
     def __init__(
         self,
         chat_repo: ChatRepository,
+        chunk_buffer_repo: ChunkBufferRepository,
         cot_repo: ChainOfThoughtRepository,
         id_generator: IdGenerator,
         llm: LLMProvider,
@@ -47,6 +51,7 @@ class AgentWorkerUseCases:
         user_event_emitter: EventEmitter,
     ):
         self._chat_repo = chat_repo
+        self._chunk_buffer_repo = chunk_buffer_repo
         self._cot_repo = cot_repo
         self._id_generator = id_generator
         self._llm = llm
@@ -145,16 +150,16 @@ class AgentWorkerUseCases:
         ]
 
         turn_id = self._id_generator.gen()
-
         chat.turns.append(
             Turn(
                 id=turn_id,
                 type=TurnType.ASSISTANT,
                 content="",
+                status=TurnStatus.PROCESSING,
             )
         )
 
-        await self._chat_repo.update(chat_id=chat_id, chat=chat)
+        updated_chat = await self._chat_repo.update(chat_id=chat_id, chat=chat)
 
         async def on_created() -> None:
             await self._user_event_emitter.send(
@@ -162,12 +167,14 @@ class AgentWorkerUseCases:
                 event=EventCreated(turn_id=turn_id),
             )
 
-        async def on_message(chunk: str) -> None:
+        async def on_message(chunk: str, index: int) -> None:
             # Persist the chunk before notifying the client.
-            await self._chat_repo.append_chunk_to_turn(
-                chat_id=chat_id,
-                turn_id=turn_id,
-                chunk=chunk,
+            await self._chunk_buffer_repo.create(
+                Chunk(
+                    index=index,
+                    turn_id=turn_id,
+                    content=chunk,
+                )
             )
             await self._user_event_emitter.send(
                 id=chat.user_id,
@@ -175,12 +182,32 @@ class AgentWorkerUseCases:
             )
 
         async def on_completed() -> None:
+            updated_turn = next(
+                turn for turn in updated_chat.turns if turn.id == turn_id
+            )
+            updated_turn.status = TurnStatus.SUCCESS
+
+            await self._chat_repo.update(
+                chat_id=chat_id,
+                chat=updated_chat,
+            )
+
             await self._user_event_emitter.send(
                 id=chat.user_id,
                 event=EventCompleted(turn_id=turn_id),
             )
 
         async def on_error(error: str) -> None:
+            updated_turn = next(
+                turn for turn in updated_chat.turns if turn.id == turn_id
+            )
+            updated_turn.status = TurnStatus.ERROR
+
+            await self._chat_repo.update(
+                chat_id=chat_id,
+                chat=updated_chat,
+            )
+
             await self._user_event_emitter.send(
                 id=chat.user_id,
                 event=EventError(message=error, turn_id=turn_id),

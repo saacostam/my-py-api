@@ -1,7 +1,13 @@
 from lab.apps.bare_agent.features.agent.app import AgentUseCases, ChatIdentifier
 from lab.apps.bare_agent.features.agent.domain import ChainOfThought
 from lab.apps.bare_agent.features.agent.test import mock_chain_of_thought_repository
-from lab.apps.bare_agent.features.chat.domain import Chat, LeanChat, Turn, TurnType
+from lab.apps.bare_agent.features.chat.domain import (
+    Chat,
+    LeanChat,
+    Turn,
+    TurnStatus,
+    TurnType,
+)
 from lab.apps.bare_agent.features.chat.test import mock_chat_repository
 from lab.apps.bare_agent.shared.adapters.domain import QueueEntry
 from lab.apps.bare_agent.shared.adapters.test import mock_id_generator, mock_queue
@@ -26,6 +32,7 @@ async def test_create_agent_success() -> None:
                 id="turn-id-123",
                 type=TurnType.USER,
                 content="Hello",
+                status=TurnStatus.PROCESSING,
             )
         ],
     )
@@ -121,6 +128,7 @@ async def test_get_by_id_success() -> None:
                 id="turn-id-123",
                 type=TurnType.USER,
                 content="Hello",
+                status=TurnStatus.SUCCESS,
             )
         ],
     )
@@ -185,6 +193,7 @@ async def test_resume_agent_success() -> None:
                 id="turn-id-123",
                 type=TurnType.USER,
                 content="Hello",
+                status=TurnStatus.SUCCESS,
             )
         ],
     )
@@ -223,11 +232,13 @@ async def test_resume_agent_success() -> None:
             id="turn-id-123",
             type=TurnType.USER,
             content="Hello",
+            status=TurnStatus.SUCCESS,
         ),
         Turn(
             id="turn-id-456",
             type=TurnType.USER,
             content="How are you?",
+            status=TurnStatus.PROCESSING,
         ),
     ]
 

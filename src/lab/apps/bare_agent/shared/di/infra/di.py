@@ -19,9 +19,11 @@ from lab.apps.bare_agent.features.agent.infra import (
 )
 from lab.apps.bare_agent.features.chat.domain import (
     ChatRepository,
+    ChunkBufferRepository,
 )
 from lab.apps.bare_agent.features.chat.infra import (
     MemoryChatRepository,
+    MemoryChunkBufferRepository,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
     IdGenerator,
@@ -48,6 +50,7 @@ queue: Queue = InMemoryQueue(timeout=timedelta(minutes=5))
 
 # Chat Module
 chat_repo: ChatRepository = MemoryChatRepository()
+chunk_buffer_repository: ChunkBufferRepository = MemoryChunkBufferRepository()
 
 # Agent Module
 cot_repo: ChainOfThoughtRepository = MemoryThoughtRepository()
@@ -59,6 +62,7 @@ agent_use_cases = AgentUseCases(
 )
 agent_worker_use_cases = AgentWorkerUseCases(
     chat_repo=chat_repo,
+    chunk_buffer_repo=chunk_buffer_repository,
     cot_repo=cot_repo,
     id_generator=id_generator,
     llm=llm_provider,
