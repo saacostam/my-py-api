@@ -184,7 +184,7 @@ class AgentWorkerUseCases:
 
             await self._user_event_emitter.send(
                 id=chat.user_id,
-                event=EventMessage(content=chunk, turn_id=turn_id),
+                event=EventMessage(content=chunk, turn_id=turn_id, index=index),
             )
 
         async def on_completed() -> None:

@@ -174,11 +174,11 @@ async def test_response_success() -> None:
         call(id="public", event=EventCreated(turn_id="turn-id-123")),
         call(
             id="public",
-            event=EventMessage(content="Hello", turn_id="turn-id-123"),
+            event=EventMessage(content="Hello", turn_id="turn-id-123", index=0),
         ),
         call(
             id="public",
-            event=EventMessage(content=" world", turn_id="turn-id-123"),
+            event=EventMessage(content=" world", turn_id="turn-id-123", index=1),
         ),
         call(id="public", event=EventCompleted(turn_id="turn-id-123")),
     ]
@@ -279,11 +279,11 @@ async def test_response_stream_error_emits_error_event() -> None:
         call(id="public", event=EventCreated(turn_id="turn-id-123")),
         call(
             id="public",
-            event=EventMessage(content="Partial ", turn_id="turn-id-123"),
+            event=EventMessage(content="Partial ", turn_id="turn-id-123", index=0),
         ),
         call(
             id="public",
-            event=EventMessage(content="response", turn_id="turn-id-123"),
+            event=EventMessage(content="response", turn_id="turn-id-123", index=1),
         ),
         call(
             id="public",

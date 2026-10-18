@@ -12,6 +12,7 @@ class EventCreated:
 class EventMessage:
     content: str
     turn_id: str
+    index: int
     type: Literal["message"] = "message"
 
 
