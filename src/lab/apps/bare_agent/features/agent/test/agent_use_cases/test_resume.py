@@ -20,6 +20,7 @@ async def test_resume_agent_success() -> None:
     id_generator = mock_id_generator()
     id_generator.gen.side_effect = [
         "turn-id-456",
+        "turn-id-789",
         "cot-id-123",
         "queue-entry-id-123",
     ]
@@ -81,6 +82,12 @@ async def test_resume_agent_success() -> None:
             content="How are you?",
             status=TurnStatus.SUCCESS,
         ),
+        Turn(
+            id="turn-id-789",
+            type=TurnType.ASSISTANT,
+            content="",
+            status=TurnStatus.PROCESSING,
+        ),
     ]
 
     chat_repo.update.assert_awaited_once_with(
@@ -95,11 +102,12 @@ async def test_resume_agent_success() -> None:
             id="queue-entry-id-123",
             chat_id="chat-id-123",
             cot_id="cot-id-123",
+            turn_id="turn-id-789",
             type="decision",
         )
     )
 
-    assert id_generator.gen.call_count == 3
+    assert id_generator.gen.call_count == 4
 
 
 async def test_resume_agent_chat_not_found() -> None:

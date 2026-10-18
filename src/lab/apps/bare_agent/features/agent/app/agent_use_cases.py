@@ -48,23 +48,35 @@ class AgentUseCases:
 
     async def create(self, message: str) -> ChatIdentifier:
         # Create Chat
+        chat_id = self._id_generator.gen()
+        user_turn_id = self._id_generator.gen()
+        response_turn_id = self._id_generator.gen()
+
         chat_to_be_created: Chat = Chat(
-            id=self._id_generator.gen(),
+            id=chat_id,
             user_id=USER_ID,
             turns=[
                 Turn(
-                    id=self._id_generator.gen(),
+                    id=user_turn_id,
                     type=TurnType.USER,
                     content=message,
                     status=TurnStatus.SUCCESS,
-                )
+                ),
+                Turn(
+                    id=response_turn_id,
+                    type=TurnType.ASSISTANT,
+                    content="",
+                    status=TurnStatus.PROCESSING,
+                ),
             ],
         )
 
         chat = await self._chat_repo.create(chat=chat_to_be_created)
 
         chain_identifier = await self._start_chain_of_though(
-            chat_id=chat.id, message=message
+            chat_id=chat.id,
+            message=message,
+            turn_id=response_turn_id,
         )
 
         return chain_identifier
@@ -135,13 +147,25 @@ class AgentUseCases:
                 type=TurnType.USER,
                 content=message,
                 status=TurnStatus.SUCCESS,
+            ),
+        )
+
+        response_turn_id = self._id_generator.gen()
+        chat.turns.append(
+            Turn(
+                id=response_turn_id,
+                type=TurnType.ASSISTANT,
+                content="",
+                status=TurnStatus.PROCESSING,
             )
         )
+
         updated_chat = await self._chat_repo.update(chat_id=chat.id, chat=chat)
 
         chain_identifier = await self._start_chain_of_though(
             chat_id=updated_chat.id,
             message=message,
+            turn_id=response_turn_id,
         )
 
         return chain_identifier
@@ -158,7 +182,7 @@ class AgentUseCases:
 
         return chat
 
-    async def _start_chain_of_though(self, chat_id: str, message: str):
+    async def _start_chain_of_though(self, chat_id: str, message: str, turn_id: str):
         # Create CoT
         chain_of_though_to_be_created: ChainOfThought = ChainOfThought(
             id=self._id_generator.gen(),
@@ -175,6 +199,7 @@ class AgentUseCases:
                 id=self._id_generator.gen(),
                 chat_id=chat_id,
                 cot_id=cot.id,
+                turn_id=turn_id,
                 type="decision",
             )
         )

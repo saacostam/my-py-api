@@ -26,11 +26,13 @@ async def run_agent_worker(
                 await agent_worker_use_cases.decision(
                     chat_id=entry.chat_id,
                     cot_id=entry.cot_id,
+                    turn_id=entry.turn_id,
                 )
             elif entry.type == "response":
                 await agent_worker_use_cases.response(
                     chat_id=entry.chat_id,
                     cot_id=entry.cot_id,
+                    turn_id=entry.turn_id,
                 )
             else:
                 raise ValueError(f"Unsupported queue entry type: {entry.type}")

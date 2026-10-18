@@ -9,6 +9,7 @@ class QueueEntry:
     id: str
     chat_id: str
     cot_id: str
+    turn_id: str
     type: QueueEntryType
 
 

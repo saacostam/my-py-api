@@ -20,6 +20,7 @@ async def test_create_agent_success() -> None:
     id_generator.gen.side_effect = [
         "chat-id-123",
         "turn-id-123",
+        "turn-id-456",
         "cot-id-123",
         "queue-entry-id-123",
     ]
@@ -34,7 +35,13 @@ async def test_create_agent_success() -> None:
                 type=TurnType.USER,
                 content="Hello",
                 status=TurnStatus.SUCCESS,
-            )
+            ),
+            Turn(
+                id="turn-id-456",
+                type=TurnType.ASSISTANT,
+                content="",
+                status=TurnStatus.PROCESSING,
+            ),
         ],
     )
     chat_repo.create.return_value = created_chat
@@ -71,8 +78,9 @@ async def test_create_agent_success() -> None:
             id="queue-entry-id-123",
             chat_id="chat-id-123",
             cot_id="cot-id-123",
+            turn_id="turn-id-456",
             type="decision",
         )
     )
 
-    assert id_generator.gen.call_count == 4
+    assert id_generator.gen.call_count == 5

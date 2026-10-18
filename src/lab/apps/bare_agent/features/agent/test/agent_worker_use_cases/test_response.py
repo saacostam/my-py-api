@@ -61,7 +61,6 @@ def make_use_cases(
 
 async def test_response_success() -> None:
     id_generator = mock_id_generator()
-    id_generator.gen.return_value = "turn-id-123"
 
     existing_chat = Chat(
         id="chat-id-123",
@@ -72,7 +71,13 @@ async def test_response_success() -> None:
                 type=TurnType.USER,
                 content="Hello",
                 status=TurnStatus.SUCCESS,
-            )
+            ),
+            Turn(
+                id="turn-id",
+                type=TurnType.ASSISTANT,
+                content="",
+                status=TurnStatus.PROCESSING,
+            ),
         ],
     )
     chat_repo = mock_chat_repository()
@@ -118,42 +123,22 @@ async def test_response_success() -> None:
         event_emitter=event_emitter,
     )
 
-    await use_cases.response(chat_id="chat-id-123", cot_id="cot-id-123")
+    await use_cases.response(
+        chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+    )
 
     chat_repo.get_by_id.assert_awaited_once_with(id="chat-id-123")
-    assert chat_repo.update.await_count == 1
-    chat_repo.update.assert_awaited_once_with(
-        chat_id="chat-id-123",
-        chat=Chat(
-            id="chat-id-123",
-            user_id="public",
-            turns=[
-                Turn(
-                    id="user-turn-id-123",
-                    type=TurnType.USER,
-                    content="Hello",
-                    status=TurnStatus.SUCCESS,
-                ),
-                Turn(
-                    id="turn-id-123",
-                    type=TurnType.ASSISTANT,
-                    content="",
-                    status=TurnStatus.PROCESSING,
-                ),
-            ],
-        ),
-    )
 
     chat_repo.update_turn.assert_awaited_once()
     update_call = chat_repo.update_turn.await_args
     assert update_call.kwargs["id"] == "chat-id-123"
-    assert update_call.kwargs["turn_id"] == "turn-id-123"
+    assert update_call.kwargs["turn_id"] == "turn-id"
     assert update_call.kwargs["turn"].content == "Hello world"
     assert update_call.kwargs["turn"].status == TurnStatus.SUCCESS
 
     assert chunk_buffer_repo.create.await_args_list == [
-        call(Chunk(index=0, turn_id="turn-id-123", content="Hello")),
-        call(Chunk(index=1, turn_id="turn-id-123", content=" world")),
+        call(Chunk(index=0, turn_id="turn-id", content="Hello")),
+        call(Chunk(index=1, turn_id="turn-id", content=" world")),
     ]
 
     llm.stream.assert_awaited_once_with(
@@ -171,23 +156,21 @@ async def test_response_success() -> None:
     )
 
     assert event_emitter.send.await_args_list == [
-        call(id="public", event=EventCreated(turn_id="turn-id-123")),
+        call(id="public", event=EventCreated(turn_id="turn-id")),
         call(
             id="public",
-            event=EventMessage(content="Hello", turn_id="turn-id-123", index=0),
+            event=EventMessage(content="Hello", turn_id="turn-id", index=0),
         ),
         call(
             id="public",
-            event=EventMessage(content=" world", turn_id="turn-id-123", index=1),
+            event=EventMessage(content=" world", turn_id="turn-id", index=1),
         ),
-        call(id="public", event=EventCompleted(turn_id="turn-id-123")),
+        call(id="public", event=EventCompleted(turn_id="turn-id")),
     ]
-    id_generator.gen.assert_called_once_with()
 
 
 async def test_response_stream_error_emits_error_event() -> None:
     id_generator = mock_id_generator()
-    id_generator.gen.return_value = "turn-id-123"
 
     existing_chat = Chat(
         id="chat-id-123",
@@ -198,7 +181,13 @@ async def test_response_stream_error_emits_error_event() -> None:
                 type=TurnType.USER,
                 content="Hello",
                 status=TurnStatus.SUCCESS,
-            )
+            ),
+            Turn(
+                id="turn-id",
+                type=TurnType.ASSISTANT,
+                content="",
+                status=TurnStatus.PROCESSING,
+            ),
         ],
     )
     chat_repo = mock_chat_repository()
@@ -237,63 +226,42 @@ async def test_response_stream_error_emits_error_event() -> None:
         event_emitter=event_emitter,
     )
 
-    await use_cases.response(chat_id="chat-id-123", cot_id="cot-id-123")
+    await use_cases.response(
+        chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+    )
 
     chat_repo.get_by_id.assert_awaited_once_with(id="chat-id-123")
-    assert chat_repo.update.await_count == 1
-    chat_repo.update.assert_awaited_once_with(
-        chat_id="chat-id-123",
-        chat=Chat(
-            id="chat-id-123",
-            user_id="public",
-            turns=[
-                Turn(
-                    id="user-turn-id-123",
-                    type=TurnType.USER,
-                    content="Hello",
-                    status=TurnStatus.SUCCESS,
-                ),
-                Turn(
-                    id="turn-id-123",
-                    type=TurnType.ASSISTANT,
-                    content="",
-                    status=TurnStatus.PROCESSING,
-                ),
-            ],
-        ),
-    )
 
     chat_repo.update_turn.assert_awaited_once()
     update_call = chat_repo.update_turn.await_args
     assert update_call.kwargs["id"] == "chat-id-123"
-    assert update_call.kwargs["turn_id"] == "turn-id-123"
+    assert update_call.kwargs["turn_id"] == "turn-id"
     assert update_call.kwargs["turn"].content == "Partial response"
     assert update_call.kwargs["turn"].status == TurnStatus.ERROR
 
     assert chunk_buffer_repo.create.await_args_list == [
-        call(Chunk(index=0, turn_id="turn-id-123", content="Partial ")),
-        call(Chunk(index=1, turn_id="turn-id-123", content="response")),
+        call(Chunk(index=0, turn_id="turn-id", content="Partial ")),
+        call(Chunk(index=1, turn_id="turn-id", content="response")),
     ]
 
     assert event_emitter.send.await_args_list == [
-        call(id="public", event=EventCreated(turn_id="turn-id-123")),
+        call(id="public", event=EventCreated(turn_id="turn-id")),
         call(
             id="public",
-            event=EventMessage(content="Partial ", turn_id="turn-id-123", index=0),
+            event=EventMessage(content="Partial ", turn_id="turn-id", index=0),
         ),
         call(
             id="public",
-            event=EventMessage(content="response", turn_id="turn-id-123", index=1),
+            event=EventMessage(content="response", turn_id="turn-id", index=1),
         ),
         call(
             id="public",
             event=EventError(
                 message="Generation failed",
-                turn_id="turn-id-123",
+                turn_id="turn-id",
             ),
         ),
     ]
-    id_generator.gen.assert_called_once_with()
 
 
 async def test_response_chat_not_found() -> None:
@@ -314,7 +282,9 @@ async def test_response_chat_not_found() -> None:
     )
 
     with pytest.raises(DomainError) as exc_info:
-        await use_cases.response(chat_id="chat-id-123", cot_id="cot-id-123")
+        await use_cases.response(
+            chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+        )
 
     error = exc_info.value
     assert error.type == ErrorType.NOT_FOUND

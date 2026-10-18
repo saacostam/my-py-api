@@ -7,7 +7,13 @@ from .memory_queue import InMemoryQueue
 
 async def test_add_and_peek_returns_entry() -> None:
     queue = InMemoryQueue(timeout=timedelta(seconds=1))
-    entry = QueueEntry(id="entry-1", chat_id="chat-1", cot_id="cot-1", type="decision")
+    entry = QueueEntry(
+        id="entry-1",
+        chat_id="chat-1",
+        cot_id="cot-1",
+        type="decision",
+        turn_id="turn-id",
+    )
 
     result = await queue.add(entry)
 
@@ -25,7 +31,13 @@ async def test_peek_returns_none_when_queue_is_empty() -> None:
 
 async def test_peek_does_not_return_same_entry_before_timeout() -> None:
     queue = InMemoryQueue(timeout=timedelta(seconds=1))
-    entry = QueueEntry(id="entry-1", chat_id="chat-1", cot_id="cot-1", type="decision")
+    entry = QueueEntry(
+        id="entry-1",
+        chat_id="chat-1",
+        cot_id="cot-1",
+        type="decision",
+        turn_id="turn-id",
+    )
 
     await queue.add(entry)
 
@@ -40,10 +52,18 @@ async def test_peek_returns_next_entry_when_first_entry_is_peeked() -> None:
     queue = InMemoryQueue(timeout=timedelta(seconds=1))
 
     first_entry = QueueEntry(
-        id="entry-1", chat_id="chat-1", cot_id="cot-1", type="decision"
+        id="entry-1",
+        chat_id="chat-1",
+        cot_id="cot-1",
+        type="decision",
+        turn_id="turn-id",
     )
     second_entry = QueueEntry(
-        id="entry-2", chat_id="chat-2", cot_id="cot-2", type="decision"
+        id="entry-2",
+        chat_id="chat-2",
+        cot_id="cot-2",
+        type="decision",
+        turn_id="turn-id",
     )
 
     await queue.add(first_entry)
@@ -58,7 +78,13 @@ async def test_peek_returns_next_entry_when_first_entry_is_peeked() -> None:
 
 async def test_peek_returns_entry_again_after_timeout() -> None:
     queue = InMemoryQueue(timeout=timedelta(milliseconds=1))
-    entry = QueueEntry(id="entry-1", chat_id="chat-1", cot_id="cot-1", type="decision")
+    entry = QueueEntry(
+        id="entry-1",
+        chat_id="chat-1",
+        cot_id="cot-1",
+        type="decision",
+        turn_id="turn-id",
+    )
 
     await queue.add(entry)
 
@@ -74,7 +100,13 @@ async def test_peek_returns_entry_again_after_timeout() -> None:
 
 async def test_remove_removes_entry_from_queue() -> None:
     queue = InMemoryQueue(timeout=timedelta(seconds=1))
-    entry = QueueEntry(id="entry-1", chat_id="chat-1", cot_id="cot-1", type="decision")
+    entry = QueueEntry(
+        id="entry-1",
+        chat_id="chat-1",
+        cot_id="cot-1",
+        type="decision",
+        turn_id="turn-id",
+    )
 
     await queue.add(entry)
 
@@ -88,10 +120,18 @@ async def test_remove_allows_next_entry_to_be_peeked() -> None:
     queue = InMemoryQueue(timeout=timedelta(seconds=1))
 
     first_entry = QueueEntry(
-        id="entry-1", chat_id="chat-1", cot_id="cot-1", type="decision"
+        id="entry-1",
+        chat_id="chat-1",
+        cot_id="cot-1",
+        type="decision",
+        turn_id="turn-id",
     )
     second_entry = QueueEntry(
-        id="entry-2", chat_id="chat-2", cot_id="cot-2", type="decision"
+        id="entry-2",
+        chat_id="chat-2",
+        cot_id="cot-2",
+        type="decision",
+        turn_id="turn-id",
     )
 
     await queue.add(first_entry)

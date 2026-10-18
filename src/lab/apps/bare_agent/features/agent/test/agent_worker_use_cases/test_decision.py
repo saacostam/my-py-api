@@ -86,7 +86,9 @@ async def test_decision_response_success() -> None:
         queue=queue,
     )
 
-    await use_cases.decision(chat_id="chat-id-123", cot_id="cot-id-123")
+    await use_cases.decision(
+        chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+    )
 
     chat_repo.get_by_id.assert_awaited_once_with(id="chat-id-123")
     llm.generate.assert_awaited_once_with(
@@ -108,6 +110,7 @@ async def test_decision_response_success() -> None:
             id="queue-entry-id-123",
             chat_id="chat-id-123",
             cot_id="cot-id-123",
+            turn_id="turn-id",
             type="response",
         )
     )
@@ -146,7 +149,9 @@ async def test_decision_tools_not_implemented() -> None:
         NotImplementedError,
         match="Tool execution is not implemented",
     ):
-        await use_cases.decision(chat_id="chat-id-123", cot_id="cot-id-123")
+        await use_cases.decision(
+            chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+        )
 
     queue.add.assert_not_awaited()
     id_generator.gen.assert_not_called()
@@ -170,7 +175,9 @@ async def test_decision_chat_not_found() -> None:
     )
 
     with pytest.raises(DomainError) as exc_info:
-        await use_cases.decision(chat_id="chat-id-123", cot_id="cot-id-123")
+        await use_cases.decision(
+            chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+        )
 
     error = exc_info.value
     assert error.type == ErrorType.NOT_FOUND

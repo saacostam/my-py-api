@@ -9,7 +9,6 @@ from lab.apps.bare_agent.features.chat.domain import (
     ChatRepository,
     Chunk,
     ChunkBufferRepository,
-    Turn,
     TurnStatus,
     TurnType,
     UpdateTurnPayload,
@@ -64,6 +63,7 @@ class AgentWorkerUseCases:
         self,
         chat_id: str,
         cot_id: str,
+        turn_id: str,
     ) -> None:
         chat = await self._chat_repo.get_by_id(id=chat_id)
 
@@ -114,6 +114,7 @@ class AgentWorkerUseCases:
                     id=self._id_generator.gen(),
                     chat_id=chat_id,
                     cot_id=cot_id,
+                    turn_id=turn_id,
                     type="response",
                 )
             )
@@ -122,6 +123,7 @@ class AgentWorkerUseCases:
         self,
         chat_id: str,
         cot_id: str,
+        turn_id: str,
     ) -> None:
         chat = await self._chat_repo.get_by_id(id=chat_id)
 
@@ -147,20 +149,9 @@ class AgentWorkerUseCases:
                     content=turn.content,
                 )
                 for turn in chat.turns
+                if turn.id != turn_id
             ],
         ]
-
-        turn_id = self._id_generator.gen()
-        chat.turns.append(
-            Turn(
-                id=turn_id,
-                type=TurnType.ASSISTANT,
-                content="",
-                status=TurnStatus.PROCESSING,
-            )
-        )
-
-        await self._chat_repo.update(chat_id=chat_id, chat=chat)
 
         full_response: list[str] = []
 
