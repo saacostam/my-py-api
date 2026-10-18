@@ -43,11 +43,20 @@ class MemoryChatRepository:
     async def update_turn(self, id: str, turn_id: str, turn: UpdateTurnPayload) -> None:
         for chat in self._chats:
             if chat.id == id:
-                for curr_turn in chat.turns:
+                for i, curr_turn in enumerate(chat.turns):
                     if curr_turn.id == turn_id:
-                        curr_turn = Turn(
+                        chat.turns[i] = Turn(
                             id=curr_turn.id,
                             type=curr_turn.type,
-                            content=turn.content if turn.content else curr_turn.content,
-                            status=turn.status if turn.status else curr_turn.status,
+                            content=(
+                                turn.content
+                                if turn.content is not None
+                                else curr_turn.content
+                            ),
+                            status=(
+                                turn.status
+                                if turn.status is not None
+                                else curr_turn.status
+                            ),
                         )
+                        return
