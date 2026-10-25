@@ -7,8 +7,15 @@ from .event_emitter import (
     EventMessage,
 )
 from .id_generator import IdGenerator
+from .jwt_adapter import (
+    JwtAdapter,
+    TokenPayload,
+)
 from .llm_provider import LLMProvider, Message, MessageRole, OutputT
 from .logger import Logger
+from .password_hasher import (
+    PasswordHasher,
+)
 from .queue import Queue, QueueEntry
 
 __all__ = [
@@ -19,11 +26,14 @@ __all__ = [
     "EventError",
     "EventMessage",
     "IdGenerator",
+    "JwtAdapter",
     "LLMProvider",
     "Logger",
     "Message",
     "MessageRole",
     "OutputT",
+    "PasswordHasher",
     "Queue",
     "QueueEntry",
+    "TokenPayload",
 ]
