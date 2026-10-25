@@ -25,28 +25,47 @@ from lab.apps.bare_agent.features.chat.infra import (
     MemoryChatRepository,
     MemoryChunkBufferRepository,
 )
+from lab.apps.bare_agent.features.user.app import (
+    UserUseCases,
+)
+from lab.apps.bare_agent.features.user.domain import (
+    UserRepository,
+)
+from lab.apps.bare_agent.features.user.infra import (
+    MemoryUserRepository,
+)
 from lab.apps.bare_agent.shared.adapters.domain import (
     IdGenerator,
+    JwtAdapter,
     LLMProvider,
     Logger,
+    PasswordHasher,
     Queue,
 )
 from lab.apps.bare_agent.shared.adapters.infra import (
+    BcryptPasswordHasher,
     InMemoryQueue,
     OpenAiLLMProvider,
+    PyJwtAdapter,
     PythonLogger,
     UserSSEEventEmitter,
     UuidGenerator,
 )
+from lab.apps.bare_agent.shared.dependencies import AuthDependency
 
 # Shared
 user_sse_event_emitter = UserSSEEventEmitter()
 id_generator: IdGenerator = UuidGenerator()
+jwt_adapter: JwtAdapter = PyJwtAdapter()
 llm_provider: LLMProvider = OpenAiLLMProvider(
     client=AsyncOpenAI(),
 )
 logger: Logger = PythonLogger(logger=getLogger(name="Logger"))
 queue: Queue = InMemoryQueue(timeout=timedelta(minutes=5))
+password_hasher: PasswordHasher = BcryptPasswordHasher()
+
+# Deps
+get_current_user = AuthDependency(jwt_adapter=jwt_adapter)
 
 # Chat Module
 chat_repo: ChatRepository = MemoryChatRepository()
@@ -70,4 +89,13 @@ agent_worker_use_cases = AgentWorkerUseCases(
     logger=logger,
     queue=queue,
     user_event_emitter=user_sse_event_emitter,
+)
+
+# User Module
+user_repo: UserRepository = MemoryUserRepository()
+user_use_cases = UserUseCases(
+    jwt_adapter=jwt_adapter,
+    id_generator=id_generator,
+    password_hasher=password_hasher,
+    user_repo=user_repo,
 )
