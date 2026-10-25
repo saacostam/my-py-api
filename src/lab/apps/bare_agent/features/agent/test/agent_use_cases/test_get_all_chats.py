@@ -26,7 +26,7 @@ async def test_get_all_chats_success() -> None:
         queue=mock_queue(),
     )
 
-    result = await use_cases.get_all_chats()
+    result = await use_cases.get_all_chats(user_id="public")
 
     assert result == chats
     chat_repo.get_all_by_user_id.assert_awaited_once_with(
@@ -46,7 +46,7 @@ async def test_get_all_chats_empty() -> None:
         queue=mock_queue(),
     )
 
-    result = await use_cases.get_all_chats()
+    result = await use_cases.get_all_chats(user_id="public")
 
     assert result == []
     chat_repo.get_all_by_user_id.assert_awaited_once_with(

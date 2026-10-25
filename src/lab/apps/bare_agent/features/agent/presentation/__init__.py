@@ -1,12 +1,16 @@
 from collections.abc import AsyncIterator
 from typing import Annotated, Protocol
 
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import StreamingResponse
 
 from lab.apps.bare_agent.features.chat.domain import LeanChat
+from lab.apps.bare_agent.shared.adapters.domain import (
+    TokenPayload,
+)
 from lab.apps.bare_agent.shared.di.infra import (
     agent_use_cases,
+    get_current_user,
     user_sse_event_emitter,
 )
 
@@ -26,8 +30,11 @@ class EventSubscriber(Protocol):
 @agent_router.post("/", response_model=ChatIdentifierResponse)
 async def create_agent(
     request: CreateAgentRequest,
+    payload: TokenPayload = Depends(get_current_user),
 ) -> ChatIdentifierResponse:
-    result = await agent_use_cases.create(message=request.message)
+    result = await agent_use_cases.create(
+        message=request.message, user_id=payload.user_id
+    )
 
     return ChatIdentifierResponse(chat_id=result.chat_id)
 
@@ -36,18 +43,24 @@ async def create_agent(
 async def resume_agent(
     chat_id: Annotated[str, Path()],
     request: CreateAgentRequest,
+    payload: TokenPayload = Depends(get_current_user),
 ) -> ChatIdentifierResponse:
     result = await agent_use_cases.resume(
         chat_id=chat_id,
         message=request.message,
+        user_id=payload.user_id,
     )
 
     return ChatIdentifierResponse(chat_id=result.chat_id)
 
 
 @agent_router.get("/", response_model=list[LeanChatResponse])
-async def get_all_chats() -> list[LeanChatResponse]:
-    chats: list[LeanChat] = await agent_use_cases.get_all_chats()
+async def get_all_chats(
+    payload: TokenPayload = Depends(get_current_user),
+) -> list[LeanChatResponse]:
+    chats: list[LeanChat] = await agent_use_cases.get_all_chats(
+        user_id=payload.user_id,
+    )
 
     return [
         LeanChatResponse(
@@ -61,8 +74,9 @@ async def get_all_chats() -> list[LeanChatResponse]:
 @agent_router.get("/id/{chat_id}")
 async def get_agent(
     chat_id: Annotated[str, Path()],
+    payload: TokenPayload = Depends(get_current_user),
 ):
-    chat = await agent_use_cases.get_by_id(chat_id=chat_id)
+    chat = await agent_use_cases.get_by_id(chat_id=chat_id, user_id=payload.user_id)
 
     return chat
 

@@ -28,9 +28,6 @@ class ChatIdentifier:
     chat_id: str
 
 
-USER_ID = "public"
-
-
 class AgentUseCases:
     def __init__(
         self,
@@ -46,7 +43,7 @@ class AgentUseCases:
         self._id_generator = id_generator
         self._queue = queue
 
-    async def create(self, message: str) -> ChatIdentifier:
+    async def create(self, message: str, user_id: str) -> ChatIdentifier:
         # Create Chat
         chat_id = self._id_generator.gen()
         user_turn_id = self._id_generator.gen()
@@ -54,7 +51,7 @@ class AgentUseCases:
 
         chat_to_be_created: Chat = Chat(
             id=chat_id,
-            user_id=USER_ID,
+            user_id=user_id,
             turns=[
                 Turn(
                     id=user_turn_id,
@@ -81,13 +78,13 @@ class AgentUseCases:
 
         return chain_identifier
 
-    async def get_all_chats(self) -> list[LeanChat]:
-        chats = await self._chat_repo.get_all_by_user_id(user_id=USER_ID)
+    async def get_all_chats(self, user_id: str) -> list[LeanChat]:
+        chats = await self._chat_repo.get_all_by_user_id(user_id=user_id)
 
         return chats
 
-    async def get_by_id(self, chat_id: str) -> ChatDetails:
-        chat = await self._get_owned_chat_by_id(chat_id=chat_id)
+    async def get_by_id(self, chat_id: str, user_id: str) -> ChatDetails:
+        chat = await self._get_owned_chat_by_id(chat_id=chat_id, user_id=user_id)
 
         processing_turn_ids = [
             turn.id for turn in chat.turns if turn.status == TurnStatus.PROCESSING
@@ -138,8 +135,8 @@ class AgentUseCases:
             turns=turns,
         )
 
-    async def resume(self, chat_id: str, message: str) -> ChatIdentifier:
-        chat = await self._get_owned_chat_by_id(chat_id=chat_id)
+    async def resume(self, chat_id: str, message: str, user_id: str) -> ChatIdentifier:
+        chat = await self._get_owned_chat_by_id(chat_id=chat_id, user_id=user_id)
 
         chat.turns.append(
             Turn(
@@ -170,10 +167,10 @@ class AgentUseCases:
 
         return chain_identifier
 
-    async def _get_owned_chat_by_id(self, chat_id: str) -> Chat:
+    async def _get_owned_chat_by_id(self, chat_id: str, user_id: str) -> Chat:
         chat = await self._chat_repo.get_by_id(id=chat_id)
 
-        if chat is None:
+        if chat is None or chat.user_id != user_id:
             raise DomainError(
                 msg="Chat was not found",
                 type=ErrorType.NOT_FOUND,

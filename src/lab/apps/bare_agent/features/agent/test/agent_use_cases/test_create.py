@@ -65,7 +65,7 @@ async def test_create_agent_success() -> None:
         queue=queue,
     )
 
-    result = await use_cases.create(message="Hello")
+    result = await use_cases.create(message="Hello", user_id="public")
 
     assert result == ChatIdentifier(chat_id="chat-id-123")
 
