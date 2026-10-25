@@ -3,10 +3,20 @@ from unittest.mock import Mock
 from lab.apps.bare_agent.shared.adapters.domain import (
     EventEmitter,
     IdGenerator,
+    JwtAdapter,
     LLMProvider,
     Logger,
+    PasswordHasher,
     Queue,
 )
+
+
+def mock_jwt_adapter():
+    return Mock(spec=JwtAdapter)
+
+
+def mock_password_hasher():
+    return Mock(spec=PasswordHasher)
 
 
 def mock_event_emitter():
