@@ -1,0 +1,1 @@
+from .memory_user_repository import MemoryUserRepository as MemoryUserRepository
