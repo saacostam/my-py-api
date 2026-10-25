@@ -1,0 +1,9 @@
+from typing import Protocol
+
+from .user import User, UserWithPwHash
+
+
+class UserRepository(Protocol):
+    async def create(self, user: UserWithPwHash) -> User: ...
+    async def get_by_id(self, user_id: str) -> User | None: ...
+    async def get_by_name(self, name: str) -> UserWithPwHash | None: ...
