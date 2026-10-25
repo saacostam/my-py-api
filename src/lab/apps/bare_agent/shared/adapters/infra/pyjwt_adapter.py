@@ -1,6 +1,6 @@
 import jwt
 
-from lab.apps.todo.shared.adapters.domain import TokenPayload
+from lab.apps.bare_agent.shared.adapters.domain import TokenPayload
 
 SECRET = "REPLACE_ME"
 ALGORITHM = "HS256"
