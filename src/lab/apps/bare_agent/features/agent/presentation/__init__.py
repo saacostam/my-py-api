@@ -10,6 +10,7 @@ from lab.apps.bare_agent.shared.adapters.domain import (
 )
 from lab.apps.bare_agent.shared.di.infra import (
     agent_use_cases,
+    auth_use_cases,
     get_current_user,
     user_sse_event_emitter,
 )
@@ -27,7 +28,7 @@ class EventSubscriber(Protocol):
     def subscribe(self, id: str) -> AsyncIterator[str]: ...
 
 
-@agent_router.post("/", response_model=ChatIdentifierResponse)
+@agent_router.post("", response_model=ChatIdentifierResponse)
 async def create_agent(
     request: CreateAgentRequest,
     payload: TokenPayload = Depends(get_current_user),
@@ -54,7 +55,7 @@ async def resume_agent(
     return ChatIdentifierResponse(chat_id=result.chat_id)
 
 
-@agent_router.get("/", response_model=list[LeanChatResponse])
+@agent_router.get("", response_model=list[LeanChatResponse])
 async def get_all_chats(
     payload: TokenPayload = Depends(get_current_user),
 ) -> list[LeanChatResponse]:
@@ -83,12 +84,14 @@ async def get_agent(
 
 @agent_router.get("/events")
 async def get_agent_events(
-    user_id: Annotated[str, Query()] = "public",
+    token: Annotated[str, Query()],
 ) -> StreamingResponse:
+    payload = auth_use_cases.validate(token=token)
+
     subscriber: EventSubscriber = user_sse_event_emitter
 
     return StreamingResponse(
-        subscriber.subscribe(user_id),
+        subscriber.subscribe(payload.user_id),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
