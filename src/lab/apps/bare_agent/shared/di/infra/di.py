@@ -17,6 +17,9 @@ from lab.apps.bare_agent.features.agent.domain import (
 from lab.apps.bare_agent.features.agent.infra import (
     MemoryThoughtRepository,
 )
+from lab.apps.bare_agent.features.auth.app import (
+    AuthUseCases,
+)
 from lab.apps.bare_agent.features.chat.domain import (
     ChatRepository,
     ChunkBufferRepository,
@@ -64,8 +67,10 @@ logger: Logger = PythonLogger(logger=getLogger(name="Logger"))
 queue: Queue = InMemoryQueue(timeout=timedelta(minutes=5))
 password_hasher: PasswordHasher = BcryptPasswordHasher()
 
-# Deps
-get_current_user = AuthDependency(jwt_adapter=jwt_adapter)
+# Auth Module
+auth_use_cases = AuthUseCases(
+    jwt=jwt_adapter,
+)
 
 # Chat Module
 chat_repo: ChatRepository = MemoryChatRepository()
@@ -98,4 +103,9 @@ user_use_cases = UserUseCases(
     id_generator=id_generator,
     password_hasher=password_hasher,
     user_repo=user_repo,
+)
+
+# Deps
+get_current_user = AuthDependency(
+    auth_use_cases=auth_use_cases,
 )
