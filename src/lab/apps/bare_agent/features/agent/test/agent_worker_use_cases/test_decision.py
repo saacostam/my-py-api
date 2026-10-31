@@ -8,14 +8,14 @@ from lab.apps.bare_agent.features.agent.test import (
     mock_chain_of_thought_repository,
 )
 from lab.apps.bare_agent.features.chat.domain import (
-    Chat,
-    Turn,
     TurnStatus,
     TurnType,
 )
 from lab.apps.bare_agent.features.chat.test import (
     mock_chat_repository,
     mock_chunk_buffer_repository,
+    seed_chat,
+    seed_turn,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
     Message,
@@ -58,22 +58,24 @@ async def test_decision_response_success() -> None:
     id_generator = mock_id_generator()
     id_generator.gen.return_value = "queue-entry-id-123"
 
-    existing_chat = Chat(
-        id="chat-id-123",
-        user_id="public",
+    user_id = "public"
+    cot_id = "cot-id-123"
+
+    user_turn = seed_turn(
+        type=TurnType.USER,
+        status=TurnStatus.SUCCESS,
+    )
+    assistant_turn = seed_turn(
+        type=TurnType.ASSISTANT,
+        status=TurnStatus.PROCESSING,
+        content="",
+    )
+
+    existing_chat = seed_chat(
+        user_id=user_id,
         turns=[
-            Turn(
-                id="user-turn-id-123",
-                type=TurnType.USER,
-                content="Hello",
-                status=TurnStatus.SUCCESS,
-            ),
-            Turn(
-                id="turn-id",
-                type=TurnType.USER,
-                content="",
-                status=TurnStatus.PROCESSING,
-            ),
+            user_turn,
+            assistant_turn,
         ],
     )
 
@@ -93,10 +95,10 @@ async def test_decision_response_success() -> None:
     )
 
     await use_cases.decision(
-        chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+        chat_id=existing_chat.id, cot_id=cot_id, turn_id=assistant_turn.id
     )
 
-    chat_repo.get_by_id.assert_awaited_once_with(id="chat-id-123")
+    chat_repo.get_by_id.assert_awaited_once_with(id=existing_chat.id)
     llm.generate.assert_awaited_once_with(
         messages=[
             Message(
@@ -107,16 +109,16 @@ async def test_decision_response_success() -> None:
                     "direct answer and 'tools' when tools are necessary."
                 ),
             ),
-            Message(role=MessageRole.USER, content="Hello"),
+            Message(role=MessageRole.USER, content=user_turn.content),
         ],
         output_schema=AgentDecision,
     )
     queue.add.assert_awaited_once_with(
         QueueEntry(
             id="queue-entry-id-123",
-            chat_id="chat-id-123",
-            cot_id="cot-id-123",
-            turn_id="turn-id",
+            chat_id=existing_chat.id,
+            cot_id=cot_id,
+            turn_id=assistant_turn.id,
             type="response",
         )
     )
@@ -124,22 +126,14 @@ async def test_decision_response_success() -> None:
 
 
 async def test_decision_tools_not_implemented() -> None:
-    existing_chat = Chat(
-        id="chat-id-123",
-        user_id="public",
-        turns=[
-            Turn(
-                id="user-turn-id-123",
-                type=TurnType.USER,
-                content="Search for something",
-                status=TurnStatus.SUCCESS,
-            )
-        ],
-    )
+    existing_chat = seed_chat()
+
     chat_repo = mock_chat_repository()
     chat_repo.get_by_id.return_value = existing_chat
+
     llm = mock_llm_provider()
     llm.generate.return_value = AgentDecision(decision="tools")
+
     id_generator = mock_id_generator()
     queue = mock_queue()
 
@@ -156,7 +150,7 @@ async def test_decision_tools_not_implemented() -> None:
         match="Tool execution is not implemented",
     ):
         await use_cases.decision(
-            chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+            chat_id=existing_chat.id, cot_id="cot-id-123", turn_id="turn-id"
         )
 
     queue.add.assert_not_awaited()
@@ -164,8 +158,11 @@ async def test_decision_tools_not_implemented() -> None:
 
 
 async def test_decision_chat_not_found() -> None:
+    chat_id = "chat-id-123"
+
     chat_repo = mock_chat_repository()
     chat_repo.get_by_id.return_value = None
+
     llm = mock_llm_provider()
     id_generator = mock_id_generator()
     logger = mock_logger()
@@ -182,12 +179,12 @@ async def test_decision_chat_not_found() -> None:
 
     with pytest.raises(DomainError) as exc_info:
         await use_cases.decision(
-            chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+            chat_id=chat_id, cot_id="cot-id-123", turn_id="turn-id"
         )
 
     error = exc_info.value
     assert error.type == ErrorType.NOT_FOUND
-    assert error.msg == "AgentWorkerUseCases.decision: Chat chat-id-123 not found"
+    assert error.msg == f"AgentWorkerUseCases.decision: Chat {chat_id} not found"
     assert error.user_msg == "Failed to process missing chat"
 
     llm.generate.assert_not_awaited()
