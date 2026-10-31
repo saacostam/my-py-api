@@ -1,8 +1,8 @@
 import pytest
 
 from lab.apps.bare_agent.features.user.app.user_use_cases import UserUseCases
-from lab.apps.bare_agent.features.user.domain import User, UserWithPwHash
-from lab.apps.bare_agent.features.user.test import mock_user_repository
+from lab.apps.bare_agent.features.user.domain import UserWithPwHash
+from lab.apps.bare_agent.features.user.test import mock_user_repository, seed_user
 from lab.apps.bare_agent.shared.adapters.test import (
     mock_id_generator,
     mock_jwt_adapter,
@@ -12,18 +12,15 @@ from lab.shared.errors.domain import DomainError, ErrorType
 
 
 async def test_signup_returns_created_user_id() -> None:
+    created_user = seed_user()
+
     jwt_adapter = mock_jwt_adapter()
 
     id_generator = mock_id_generator()
-    id_generator.gen.return_value = "user-1"
+    id_generator.gen.return_value = created_user.id
 
     password_hasher = mock_password_hasher()
     password_hasher.hash.return_value = "password-hash"
-
-    created_user = User(
-        id="user-1",
-        name="John Doe",
-    )
 
     user_repo = mock_user_repository()
     user_repo.get_by_name.return_value = None
@@ -36,17 +33,17 @@ async def test_signup_returns_created_user_id() -> None:
         user_repo=user_repo,
     )
 
-    result = await use_cases.signup("John Doe", "password")
+    result = await use_cases.signup(created_user.name, "password")
 
-    assert result == "user-1"
+    assert result == created_user.id
 
-    user_repo.get_by_name.assert_awaited_once_with(name="John Doe")
+    user_repo.get_by_name.assert_awaited_once_with(name=created_user.name)
     id_generator.gen.assert_called_once_with()
     password_hasher.hash.assert_called_once_with(password="password")
     user_repo.create.assert_awaited_once_with(
         UserWithPwHash(
-            id="user-1",
-            name="John Doe",
+            id=created_user.id,
+            name=created_user.name,
             pw_hash="password-hash",
         )
     )
@@ -57,11 +54,7 @@ async def test_signup_raises_conflict_when_name_already_exists() -> None:
     id_generator = mock_id_generator()
     password_hasher = mock_password_hasher()
 
-    existing_user = UserWithPwHash(
-        id="user-1",
-        name="John Doe",
-        pw_hash="hashed-password",
-    )
+    existing_user = seed_user()
 
     user_repo = mock_user_repository()
     user_repo.get_by_name.return_value = existing_user
@@ -74,13 +67,13 @@ async def test_signup_raises_conflict_when_name_already_exists() -> None:
     )
 
     with pytest.raises(DomainError) as error:
-        await use_cases.signup("John Doe", "password")
+        await use_cases.signup(existing_user.name, "password")
 
     assert error.value.type == ErrorType.CONFLICT
     assert error.value.user_msg == "Name already in use"
     assert error.value.fields == [{"field": "name", "message": "Duplicated"}]
 
-    user_repo.get_by_name.assert_awaited_once_with(name="John Doe")
+    user_repo.get_by_name.assert_awaited_once_with(name=existing_user.name)
     password_hasher.hash.assert_not_called()
     user_repo.create.assert_not_awaited()
 
@@ -94,11 +87,7 @@ async def test_login_returns_jwt_token() -> None:
     password_hasher = mock_password_hasher()
     password_hasher.verify.return_value = True
 
-    existing_user = UserWithPwHash(
-        id="user-1",
-        name="John Doe",
-        pw_hash="hashed-password",
-    )
+    existing_user = seed_user()
 
     user_repo = mock_user_repository()
     user_repo.get_by_name.return_value = existing_user
@@ -110,14 +99,14 @@ async def test_login_returns_jwt_token() -> None:
         user_repo=user_repo,
     )
 
-    token = await use_cases.login("John Doe", "password123")
+    token = await use_cases.login(existing_user.name, "password123")
 
     assert token == "mock-jwt-token"
-    user_repo.get_by_name.assert_awaited_once_with(name="John Doe")
+    user_repo.get_by_name.assert_awaited_once_with(name=existing_user.name)
     password_hasher.verify.assert_called_once_with(
-        plain_password="password123", hashed_password="hashed-password"
+        plain_password="password123", hashed_password=existing_user.pw_hash
     )
-    jwt_adapter.get_token.assert_called_once_with("user-1")
+    jwt_adapter.get_token.assert_called_once_with(existing_user.id)
 
 
 async def test_login_raises_bad_request_when_user_not_found() -> None:
@@ -154,11 +143,7 @@ async def test_login_raises_bad_request_when_password_is_invalid() -> None:
     password_hasher = mock_password_hasher()
     password_hasher.verify.return_value = False
 
-    existing_user = UserWithPwHash(
-        id="user-1",
-        name="John Doe",
-        pw_hash="hashed-password",
-    )
+    existing_user = seed_user()
 
     user_repo = mock_user_repository()
     user_repo.get_by_name.return_value = existing_user
@@ -171,15 +156,15 @@ async def test_login_raises_bad_request_when_password_is_invalid() -> None:
     )
 
     with pytest.raises(DomainError) as error:
-        await use_cases.login("John Doe", "wrong-password")
+        await use_cases.login(existing_user.name, "wrong-password")
 
     assert error.value.type == ErrorType.BAD_REQUEST
     assert error.value.user_msg == "Invalid credentials"
-    assert error.value.msg == "Authentication failed for user 'John Doe'"
+    assert error.value.msg == f"Authentication failed for user '{existing_user.name}'"
 
-    user_repo.get_by_name.assert_awaited_once_with(name="John Doe")
+    user_repo.get_by_name.assert_awaited_once_with(name=existing_user.name)
     password_hasher.verify.assert_called_once_with(
-        plain_password="wrong-password", hashed_password="hashed-password"
+        plain_password="wrong-password", hashed_password=existing_user.pw_hash
     )
     jwt_adapter.get_token.assert_not_called()
 
@@ -189,10 +174,7 @@ async def test_get_by_id_returns_user() -> None:
     id_generator = mock_id_generator()
     password_hasher = mock_password_hasher()
 
-    user = User(
-        id="user-1",
-        name="John Doe",
-    )
+    user = seed_user()
 
     user_repo = mock_user_repository()
     user_repo.get_by_id.return_value = user
@@ -204,10 +186,10 @@ async def test_get_by_id_returns_user() -> None:
         user_repo=user_repo,
     )
 
-    result = await use_cases.get_by_id("user-1")
+    result = await use_cases.get_by_id(user.id)
 
     assert result == user
-    user_repo.get_by_id.assert_awaited_once_with(user_id="user-1")
+    user_repo.get_by_id.assert_awaited_once_with(user_id=user.id)
 
 
 async def test_get_by_id_raises_not_found() -> None:
