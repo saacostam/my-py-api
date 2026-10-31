@@ -184,7 +184,7 @@ class AgentUseCases:
         chain_of_though_to_be_created: ChainOfThought = ChainOfThought(
             id=self._id_generator.gen(),
             chat_id=chat_id,
-            objective=f"Answer this message from the user: ${message}",
+            objective=f"Answer this message from the user: {message}",
             thoughts=[],
         )
 

@@ -45,7 +45,7 @@ async def test_resume_agent_success() -> None:
     created_cot = ChainOfThought(
         id="cot-id-123",
         chat_id="chat-id-123",
-        objective="Answer this message from the user: $How are you?",
+        objective="Answer this message from the user: How are you?",
         thoughts=[],
     )
     cot_repo.create.return_value = created_cot
