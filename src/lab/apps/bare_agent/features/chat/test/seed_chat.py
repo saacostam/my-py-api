@@ -15,7 +15,7 @@ def _getId() -> str:
     return str(id)
 
 
-def mock_chat(
+def seed_chat(
     id: str | None = None,
     user_id: str | None = None,
     turns: list[Turn] | None = None,
@@ -27,7 +27,7 @@ def mock_chat(
     )
 
 
-def mock_chunk(
+def seed_chunk(
     index: int | None = None,
     turn_id: str | None = None,
     content: str | None = None,
@@ -39,7 +39,7 @@ def mock_chunk(
     )
 
 
-def mock_turn(
+def seed_turn(
     id: str | None = None,
     type: TurnType | None = None,
     status: TurnStatus | None = None,
