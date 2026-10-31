@@ -93,6 +93,7 @@ class AgentWorkerUseCases:
                     content=turn.content,
                 )
                 for turn in chat.turns
+                if turn.id != turn_id
             ],
         ]
 

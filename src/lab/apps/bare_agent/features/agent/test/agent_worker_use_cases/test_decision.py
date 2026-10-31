@@ -67,7 +67,13 @@ async def test_decision_response_success() -> None:
                 type=TurnType.USER,
                 content="Hello",
                 status=TurnStatus.SUCCESS,
-            )
+            ),
+            Turn(
+                id="turn-id",
+                type=TurnType.USER,
+                content="",
+                status=TurnStatus.PROCESSING,
+            ),
         ],
     )
 
