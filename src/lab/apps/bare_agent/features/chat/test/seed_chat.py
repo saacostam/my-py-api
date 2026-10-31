@@ -49,5 +49,5 @@ def seed_turn(
         id=id if id else _getId(),
         type=type if type else TurnType.ASSISTANT,
         status=status if status else TurnStatus.SUCCESS,
-        content=content if content else _getId(),
+        content=content if isinstance(content, str) else _getId(),
     )
