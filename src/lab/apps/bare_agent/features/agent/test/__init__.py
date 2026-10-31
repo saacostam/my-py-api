@@ -1,11 +1,11 @@
 from .mock_deps import mock_chain_of_thought_repository
-from .mock_thought import (
-    mock_chain_of_thought,
-    mock_thought,
+from .seed_thought import (
+    seed_chain_of_thought,
+    seed_thought,
 )
 
 __all__ = [
-    "mock_chain_of_thought",
     "mock_chain_of_thought_repository",
-    "mock_thought",
+    "seed_chain_of_thought",
+    "seed_thought",
 ]

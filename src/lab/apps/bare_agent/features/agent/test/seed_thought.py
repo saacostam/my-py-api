@@ -12,7 +12,7 @@ def _getId() -> str:
     return str(id)
 
 
-def mock_thought(
+def seed_thought(
     id: str | None = None,
     content: str | None = None,
 ) -> Thought:
@@ -22,7 +22,7 @@ def mock_thought(
     )
 
 
-def mock_chain_of_thought(
+def seed_chain_of_thought(
     id: str | None = None,
     chat_id: str | None = None,
     objective: str | None = None,
