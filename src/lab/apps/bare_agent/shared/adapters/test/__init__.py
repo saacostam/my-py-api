@@ -7,7 +7,6 @@ from lab.apps.bare_agent.shared.adapters.domain import (
     LLMProvider,
     Logger,
     PasswordHasher,
-    Queue,
     WorkScheduler,
 )
 
@@ -34,10 +33,6 @@ def mock_llm_provider():
 
 def mock_logger():
     return Mock(spec=Logger)
-
-
-def mock_queue():
-    return Mock(spec=Queue)
 
 
 def mock_work_scheduler():

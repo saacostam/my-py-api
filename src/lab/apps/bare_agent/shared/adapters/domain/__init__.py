@@ -16,7 +16,6 @@ from .logger import Logger
 from .password_hasher import (
     PasswordHasher,
 )
-from .queue import Queue, QueueEntry, QueueEntryType
 from .work_scheduler import (
     AgentWorkEntry,
     AgentWorkEntryType,
@@ -44,9 +43,6 @@ __all__ = [
     "MessageRole",
     "OutputT",
     "PasswordHasher",
-    "Queue",
-    "QueueEntry",
-    "QueueEntryType",
     "TokenPayload",
     "WorkScheduler",
 ]
