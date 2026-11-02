@@ -6,10 +6,12 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
+from lab.apps.bare_agent.features.worker.app import (
+    WorkerProcessUseCase,
+)
 from lab.apps.bare_agent.shared.di.infra import (
     agent_worker_use_cases,
     queue,
-    run_agent_worker,
 )
 from lab.apps.bare_agent.shared.presentation import bare_agent_app_router
 from lab.apps.todo.shared.presentation import todo_app_router
@@ -26,11 +28,15 @@ logger = getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Tasks
+    worker_use_cases = WorkerProcessUseCase(
+        queue=queue,
+        agent_worker_use_cases=agent_worker_use_cases,
+        logger=logger,
+        sleep=asyncio.sleep,
+    )
+
     worker_task = asyncio.create_task(
-        run_agent_worker(
-            queue=queue,
-            agent_worker_use_cases=agent_worker_use_cases,
-        ),
+        worker_use_cases.run(),
         name="bare-agent-worker",
     )
 
