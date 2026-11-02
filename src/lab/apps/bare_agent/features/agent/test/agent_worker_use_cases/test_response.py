@@ -3,16 +3,12 @@ from unittest.mock import call
 
 import pytest
 
-from lab.apps.bare_agent.features.agent.app import (
-    AgentWorkerUseCases,
-)
+from lab.apps.bare_agent.features.agent.app import AgentWorkerUseCases
 from lab.apps.bare_agent.features.agent.test import (
     mock_chain_of_thought_repository,
 )
 from lab.apps.bare_agent.features.chat.domain import (
-    Chat,
     Chunk,
-    Turn,
     TurnStatus,
     TurnType,
 )
@@ -188,24 +184,28 @@ async def test_response_success() -> None:
 async def test_response_stream_error_emits_error_event() -> None:
     id_generator = mock_id_generator()
 
-    existing_chat = Chat(
-        id="chat-id-123",
-        user_id="public",
+    user_id = "user-id-123"
+    cot_id = "cot-id-123"
+
+    user_turn = seed_turn(
+        type=TurnType.USER,
+        status=TurnStatus.SUCCESS,
+        content="Hello",
+    )
+    assistant_turn = seed_turn(
+        type=TurnType.ASSISTANT,
+        status=TurnStatus.PROCESSING,
+        content="",
+    )
+
+    existing_chat = seed_chat(
+        user_id=user_id,
         turns=[
-            Turn(
-                id="user-turn-id-123",
-                type=TurnType.USER,
-                content="Hello",
-                status=TurnStatus.SUCCESS,
-            ),
-            Turn(
-                id="turn-id",
-                type=TurnType.ASSISTANT,
-                content="",
-                status=TurnStatus.PROCESSING,
-            ),
+            user_turn,
+            assistant_turn,
         ],
     )
+
     chat_repo = mock_chat_repository()
     chat_repo.get_by_id.return_value = existing_chat
     chat_repo.update.return_value = existing_chat
@@ -214,12 +214,15 @@ async def test_response_stream_error_emits_error_event() -> None:
     llm = mock_llm_provider()
     event_emitter = mock_event_emitter()
 
+    chunks = ["Partial ", "response"]
+    joined_chunks = reduce(lambda result, current: result + current, chunks)
+
     async def send_side_effect(*, id, event) -> None:
         if isinstance(event, EventError):
             # The error state and partial content must be persisted first.
             chat_repo.update_turn.assert_awaited_once()
             update_payload = chat_repo.update_turn.await_args.kwargs["turn"]
-            assert update_payload.content == "Partial response"
+            assert update_payload.content == joined_chunks
             assert update_payload.status == TurnStatus.ERROR
 
     event_emitter.send.side_effect = send_side_effect
@@ -227,9 +230,19 @@ async def test_response_stream_error_emits_error_event() -> None:
     async def stream_side_effect(
         *, messages, onCreated, onMessage, onCompleted, onError
     ) -> None:
+        assert messages == [
+            Message(
+                role=MessageRole.SYSTEM,
+                content="Answer the user's latest message helpfully and accurately.",
+            ),
+            Message(role=MessageRole.USER, content=user_turn.content),
+        ]
+
         await onCreated()
-        await onMessage("Partial ", 0)
-        await onMessage("response", 1)
+
+        for index in range(len(chunks)):
+            await onMessage(chunks[index], index)
+
         await onError("Generation failed")
 
     llm.stream.side_effect = stream_side_effect
@@ -243,54 +256,88 @@ async def test_response_stream_error_emits_error_event() -> None:
     )
 
     await use_cases.response(
-        chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+        chat_id=existing_chat.id,
+        cot_id=cot_id,
+        turn_id=assistant_turn.id,
     )
 
-    chat_repo.get_by_id.assert_awaited_once_with(id="chat-id-123")
+    chat_repo.get_by_id.assert_awaited_once_with(id=existing_chat.id)
 
     chat_repo.update_turn.assert_awaited_once()
     update_call = chat_repo.update_turn.await_args
-    assert update_call.kwargs["id"] == "chat-id-123"
-    assert update_call.kwargs["turn_id"] == "turn-id"
-    assert update_call.kwargs["turn"].content == "Partial response"
+    assert update_call.kwargs["id"] == existing_chat.id
+    assert update_call.kwargs["turn_id"] == assistant_turn.id
+    assert update_call.kwargs["turn"].content == joined_chunks
     assert update_call.kwargs["turn"].status == TurnStatus.ERROR
 
     assert chunk_buffer_repo.create.await_args_list == [
-        call(Chunk(index=0, turn_id="turn-id", content="Partial ")),
-        call(Chunk(index=1, turn_id="turn-id", content="response")),
+        call(
+            Chunk(
+                index=index,
+                turn_id=assistant_turn.id,
+                content=chunks[index],
+            )
+        )
+        for index in range(len(chunks))
     ]
 
+    llm.stream.assert_awaited_once_with(
+        messages=[
+            Message(
+                role=MessageRole.SYSTEM,
+                content="Answer the user's latest message helpfully and accurately.",
+            ),
+            Message(role=MessageRole.USER, content=user_turn.content),
+        ],
+        onCreated=llm.stream.await_args.kwargs["onCreated"],
+        onMessage=llm.stream.await_args.kwargs["onMessage"],
+        onCompleted=llm.stream.await_args.kwargs["onCompleted"],
+        onError=llm.stream.await_args.kwargs["onError"],
+    )
+
     assert event_emitter.send.await_args_list == [
-        call(id="public", event=EventCreated(turn_id="turn-id")),
         call(
-            id="public",
-            event=EventMessage(content="Partial ", turn_id="turn-id", index=0),
+            id=existing_chat.user_id,
+            event=EventCreated(turn_id=assistant_turn.id),
         ),
+        *[
+            call(
+                id=existing_chat.user_id,
+                event=EventMessage(
+                    content=chunks[index],
+                    turn_id=assistant_turn.id,
+                    index=index,
+                ),
+            )
+            for index in range(len(chunks))
+        ],
         call(
-            id="public",
-            event=EventMessage(content="response", turn_id="turn-id", index=1),
-        ),
-        call(
-            id="public",
+            id=existing_chat.user_id,
             event=EventError(
                 message="Generation failed",
-                turn_id="turn-id",
+                turn_id=assistant_turn.id,
             ),
         ),
     ]
 
 
 async def test_response_chat_not_found() -> None:
+    chat_id = "chat-id-123"
+    cot_id = "cot-id-123"
+    turn_id = "turn-id"
+
     chat_repo = mock_chat_repository()
     chat_repo.get_by_id.return_value = None
+
     id_generator = mock_id_generator()
+    chunk_buffer_repo = mock_chunk_buffer_repository()
     llm = mock_llm_provider()
     logger = mock_logger()
     event_emitter = mock_event_emitter()
 
     use_cases = make_use_cases(
         chat_repo=chat_repo,
-        chunk_buffer_repo=mock_chunk_buffer_repository(),
+        chunk_buffer_repo=chunk_buffer_repo,
         id_generator=id_generator,
         llm=llm,
         logger=logger,
@@ -299,16 +346,20 @@ async def test_response_chat_not_found() -> None:
 
     with pytest.raises(DomainError) as exc_info:
         await use_cases.response(
-            chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+            chat_id=chat_id,
+            cot_id=cot_id,
+            turn_id=turn_id,
         )
 
     error = exc_info.value
     assert error.type == ErrorType.NOT_FOUND
-    assert error.msg == "AgentWorkerUseCases.response: Chat chat-id-123 not found"
+    assert error.msg == f"AgentWorkerUseCases.response: Chat {chat_id} not found"
     assert error.user_msg == "Failed to respond to missing chat"
 
-    chat_repo.get_by_id.assert_awaited_once_with(id="chat-id-123")
+    chat_repo.get_by_id.assert_awaited_once_with(id=chat_id)
     chat_repo.update.assert_not_awaited()
+    chat_repo.update_turn.assert_not_awaited()
+    chunk_buffer_repo.create.assert_not_awaited()
     llm.stream.assert_not_awaited()
     id_generator.gen.assert_not_called()
     logger.info.assert_not_called()
