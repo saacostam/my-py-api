@@ -14,6 +14,8 @@ from lab.apps.bare_agent.features.chat.domain import (
     UpdateTurnPayload,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
+    AgentWorkEntry,
+    AgentWorkScheduler,
     EventCompleted,
     EventCreated,
     EventEmitter,
@@ -24,8 +26,6 @@ from lab.apps.bare_agent.shared.adapters.domain import (
     Logger,
     Message,
     MessageRole,
-    Queue,
-    QueueEntry,
 )
 from lab.shared.errors.domain import DomainError, ErrorType
 
@@ -47,7 +47,7 @@ class AgentWorkerUseCases:
         id_generator: IdGenerator,
         llm: LLMProvider,
         logger: Logger,
-        queue: Queue,
+        scheduler: AgentWorkScheduler,
         user_event_emitter: EventEmitter,
     ):
         self._chat_repo = chat_repo
@@ -56,7 +56,7 @@ class AgentWorkerUseCases:
         self._id_generator = id_generator
         self._llm = llm
         self._logger = logger
-        self._queue = queue
+        self._scheduler = scheduler
         self._user_event_emitter = user_event_emitter
 
     async def decision(
@@ -110,8 +110,8 @@ class AgentWorkerUseCases:
             raise NotImplementedError("Tool execution is not implemented")
 
         else:
-            await self._queue.add(
-                QueueEntry(
+            await self._scheduler.add(
+                AgentWorkEntry(
                     id=self._id_generator.gen(),
                     chat_id=chat_id,
                     cot_id=cot_id,

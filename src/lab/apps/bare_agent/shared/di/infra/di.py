@@ -38,16 +38,16 @@ from lab.apps.bare_agent.features.user.infra import (
     MemoryUserRepository,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
+    AgentWorkEntry,
     IdGenerator,
     JwtAdapter,
     LLMProvider,
     Logger,
     PasswordHasher,
-    Queue,
 )
 from lab.apps.bare_agent.shared.adapters.infra import (
     BcryptPasswordHasher,
-    InMemoryQueue,
+    InMemoryWorkScheduler,
     OpenAiLLMProvider,
     PyJwtAdapter,
     PythonLogger,
@@ -64,7 +64,9 @@ llm_provider: LLMProvider = OpenAiLLMProvider(
     client=AsyncOpenAI(),
 )
 logger: Logger = PythonLogger(logger=getLogger(name="Logger"))
-queue: Queue = InMemoryQueue(timeout=timedelta(minutes=5))
+scheduler = InMemoryWorkScheduler[AgentWorkEntry](
+    lease_duration=timedelta(seconds=30),
+)
 password_hasher: PasswordHasher = BcryptPasswordHasher()
 
 # Auth Module
@@ -82,8 +84,8 @@ agent_use_cases = AgentUseCases(
     chat_repo=chat_repo,
     chunk_buffer_repo=chunk_buffer_repository,
     cot_repo=cot_repo,
+    scheduler=scheduler,
     id_generator=id_generator,
-    queue=queue,
 )
 agent_worker_use_cases = AgentWorkerUseCases(
     chat_repo=chat_repo,
@@ -92,7 +94,7 @@ agent_worker_use_cases = AgentWorkerUseCases(
     id_generator=id_generator,
     llm=llm_provider,
     logger=logger,
-    queue=queue,
+    scheduler=scheduler,
     user_event_emitter=user_sse_event_emitter,
 )
 

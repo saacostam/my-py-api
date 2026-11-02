@@ -7,7 +7,7 @@ from .di import (
     get_current_user,
     id_generator,
     logger,
-    queue,
+    scheduler,
     user_sse_event_emitter,
     user_use_cases,
 )
@@ -21,8 +21,8 @@ __all__ = [
     "get_current_user",
     "id_generator",
     "logger",
-    "queue",
     "run_agent_worker",
+    "scheduler",
     "user_sse_event_emitter",
     "user_use_cases",
 ]

@@ -14,9 +14,9 @@ from lab.apps.bare_agent.features.chat.domain import (
     TurnType,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
+    AgentWorkEntry,
+    AgentWorkScheduler,
     IdGenerator,
-    Queue,
-    QueueEntry,
 )
 from lab.shared.errors.domain import DomainError, ErrorType
 
@@ -35,13 +35,13 @@ class AgentUseCases:
         chunk_buffer_repo: ChunkBufferRepository,
         cot_repo: ChainOfThoughtRepository,
         id_generator: IdGenerator,
-        queue: Queue,
+        scheduler: AgentWorkScheduler,
     ):
         self._chat_repo = chat_repo
         self._chunk_buffer_repo = chunk_buffer_repo
         self._cot_repo = cot_repo
         self._id_generator = id_generator
-        self._queue = queue
+        self._scheduler = scheduler
 
     async def create(self, message: str, user_id: str) -> ChatIdentifier:
         # Create Chat
@@ -191,8 +191,8 @@ class AgentUseCases:
         cot = await self._cot_repo.create(chain_of_though_to_be_created)
 
         # Schedule Though Loop
-        await self._queue.add(
-            QueueEntry(
+        await self._scheduler.add(
+            AgentWorkEntry(
                 id=self._id_generator.gen(),
                 chat_id=chat_id,
                 cot_id=cot.id,

@@ -31,7 +31,7 @@ from lab.apps.bare_agent.shared.adapters.test import (
     mock_id_generator,
     mock_llm_provider,
     mock_logger,
-    mock_queue,
+    mock_work_scheduler,
 )
 from lab.shared.errors.domain import DomainError, ErrorType
 
@@ -43,7 +43,7 @@ def make_use_cases(
     id_generator,
     llm,
     logger=None,
-    queue=None,
+    scheduler=None,
     event_emitter=None,
 ) -> AgentWorkerUseCases:
     return AgentWorkerUseCases(
@@ -53,7 +53,7 @@ def make_use_cases(
         id_generator=id_generator,
         llm=llm,
         logger=logger or mock_logger(),
-        queue=queue or mock_queue(),
+        scheduler=scheduler or mock_work_scheduler(),
         user_event_emitter=event_emitter or mock_event_emitter(),
     )
 

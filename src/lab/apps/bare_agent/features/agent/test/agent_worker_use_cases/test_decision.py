@@ -18,16 +18,16 @@ from lab.apps.bare_agent.features.chat.test import (
     seed_turn,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
+    AgentWorkEntry,
     Message,
     MessageRole,
-    QueueEntry,
 )
 from lab.apps.bare_agent.shared.adapters.test import (
     mock_event_emitter,
     mock_id_generator,
     mock_llm_provider,
     mock_logger,
-    mock_queue,
+    mock_work_scheduler,
 )
 from lab.shared.errors.domain import DomainError, ErrorType
 
@@ -39,7 +39,7 @@ def make_use_cases(
     id_generator,
     llm,
     logger=None,
-    queue=None,
+    scheduler=None,
     event_emitter=None,
 ) -> AgentWorkerUseCases:
     return AgentWorkerUseCases(
@@ -49,7 +49,7 @@ def make_use_cases(
         id_generator=id_generator,
         llm=llm,
         logger=logger or mock_logger(),
-        queue=queue or mock_queue(),
+        scheduler=scheduler or mock_work_scheduler(),
         user_event_emitter=event_emitter or mock_event_emitter(),
     )
 
@@ -84,14 +84,14 @@ async def test_decision_response_success() -> None:
 
     llm = mock_llm_provider()
     llm.generate.return_value = AgentDecision(decision="response")
-    queue = mock_queue()
+    scheduler = mock_work_scheduler()
 
     use_cases = make_use_cases(
         chat_repo=chat_repo,
         chunk_buffer_repo=mock_chunk_buffer_repository(),
         id_generator=id_generator,
         llm=llm,
-        queue=queue,
+        scheduler=scheduler,
     )
 
     await use_cases.decision(
@@ -113,8 +113,8 @@ async def test_decision_response_success() -> None:
         ],
         output_schema=AgentDecision,
     )
-    queue.add.assert_awaited_once_with(
-        QueueEntry(
+    scheduler.add.assert_awaited_once_with(
+        AgentWorkEntry(
             id="queue-entry-id-123",
             chat_id=existing_chat.id,
             cot_id=cot_id,
@@ -135,14 +135,14 @@ async def test_decision_tools_not_implemented() -> None:
     llm.generate.return_value = AgentDecision(decision="tools")
 
     id_generator = mock_id_generator()
-    queue = mock_queue()
+    scheduler = mock_work_scheduler()
 
     use_cases = make_use_cases(
         chat_repo=chat_repo,
         chunk_buffer_repo=mock_chunk_buffer_repository(),
         id_generator=id_generator,
         llm=llm,
-        queue=queue,
+        scheduler=scheduler,
     )
 
     with pytest.raises(
@@ -153,7 +153,7 @@ async def test_decision_tools_not_implemented() -> None:
             chat_id=existing_chat.id, cot_id="cot-id-123", turn_id="turn-id"
         )
 
-    queue.add.assert_not_awaited()
+    scheduler.add.assert_not_awaited()
     id_generator.gen.assert_not_called()
 
 
@@ -166,7 +166,7 @@ async def test_decision_chat_not_found() -> None:
     llm = mock_llm_provider()
     id_generator = mock_id_generator()
     logger = mock_logger()
-    queue = mock_queue()
+    scheduler = mock_work_scheduler()
 
     use_cases = make_use_cases(
         chat_repo=chat_repo,
@@ -174,7 +174,7 @@ async def test_decision_chat_not_found() -> None:
         id_generator=id_generator,
         llm=llm,
         logger=logger,
-        queue=queue,
+        scheduler=scheduler,
     )
 
     with pytest.raises(DomainError) as exc_info:
@@ -188,6 +188,6 @@ async def test_decision_chat_not_found() -> None:
     assert error.user_msg == "Failed to process missing chat"
 
     llm.generate.assert_not_awaited()
-    queue.add.assert_not_awaited()
+    scheduler.add.assert_not_awaited()
     id_generator.gen.assert_not_called()
     logger.info.assert_not_called()

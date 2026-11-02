@@ -11,7 +11,7 @@ from lab.apps.bare_agent.features.worker.app import (
 )
 from lab.apps.bare_agent.shared.di.infra import (
     agent_worker_use_cases,
-    queue,
+    scheduler,
 )
 from lab.apps.bare_agent.shared.presentation import bare_agent_app_router
 from lab.apps.todo.shared.presentation import todo_app_router
@@ -29,7 +29,7 @@ logger = getLogger(__name__)
 async def lifespan(app: FastAPI):
     # Tasks
     worker_use_cases = WorkerProcessUseCase(
-        queue=queue,
+        scheduler=scheduler,
         agent_worker_use_cases=agent_worker_use_cases,
         logger=logger,
         sleep=asyncio.sleep,

@@ -1,30 +1,38 @@
 from collections.abc import Awaitable, Callable
 
 from lab.apps.bare_agent.features.agent.app import AgentWorkerUseCases
-from lab.apps.bare_agent.shared.adapters.domain import Logger, Queue
+from lab.apps.bare_agent.shared.adapters.domain import (
+    AgentWorkScheduler,
+    Logger,
+)
 
 
 class WorkerProcessUseCase:
     def __init__(
         self,
-        queue: Queue,
+        scheduler: AgentWorkScheduler,
         agent_worker_use_cases: AgentWorkerUseCases,
         logger: Logger,
         sleep: Callable[[float], Awaitable[None]],
         poll_interval: float = 0.1,
-    ):
-        self.queue = queue
+        retry_delay: int = 1,
+    ) -> None:
+        self.scheduler = scheduler
         self.agent_worker_use_cases = agent_worker_use_cases
-        self.poll_interval = poll_interval
-        self.sleep = sleep
         self.logger = logger
+        self.sleep = sleep
+        self.poll_interval = poll_interval
+        self.retry_delay = retry_delay
 
     async def run(self) -> None:
         while True:
-            entry = await self.queue.peek()
-            if entry is None:
+            claim = await self.scheduler.claim()
+
+            if claim is None:
                 await self.sleep(self.poll_interval)
                 continue
+
+            entry = claim.entry
 
             try:
                 if entry.type == "decision":
@@ -40,11 +48,14 @@ class WorkerProcessUseCase:
                         turn_id=entry.turn_id,
                     )
                 else:
-                    raise ValueError(f"Unsupported queue entry type: {entry.type}")
+                    raise ValueError(f"Unsupported work entry type: {entry.type}")
 
-                await self.queue.remove(id=entry.id)
+                await self.scheduler.ack(claim)
             except BaseException:  # noqa: BLE001
                 self.logger.error(
-                    f"Failed to process queue entry {entry.id}; "
-                    "leaving it queued for retry"
+                    f"Failed to process work entry {entry.id}; scheduling it for retry"
+                )
+                await self.scheduler.retry(
+                    claim,
+                    delay=self.retry_delay,
                 )

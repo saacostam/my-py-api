@@ -13,7 +13,10 @@ from lab.apps.bare_agent.features.chat.test import (
     seed_chat,
     seed_turn,
 )
-from lab.apps.bare_agent.shared.adapters.test import mock_id_generator, mock_queue
+from lab.apps.bare_agent.shared.adapters.test import (
+    mock_id_generator,
+    mock_work_scheduler,
+)
 from lab.shared.errors.domain import DomainError, ErrorType
 
 
@@ -31,7 +34,7 @@ async def test_get_by_id_success() -> None:
         chunk_buffer_repo=chunk_buffer_repo,
         cot_repo=mock_chain_of_thought_repository(),
         id_generator=mock_id_generator(),
-        queue=mock_queue(),
+        scheduler=mock_work_scheduler(),
     )
 
     result = await use_cases.get_by_id(
@@ -61,14 +64,14 @@ async def test_get_by_id_chat_not_found() -> None:
 
     cot_repo = mock_chain_of_thought_repository()
     id_generator = mock_id_generator()
-    queue = mock_queue()
+    scheduler = mock_work_scheduler()
 
     use_cases = AgentUseCases(
         chat_repo=chat_repo,
         chunk_buffer_repo=chunk_buffer_repo,
         cot_repo=cot_repo,
         id_generator=id_generator,
-        queue=queue,
+        scheduler=scheduler,
     )
 
     chat_id = "chat-id-123"
@@ -85,7 +88,7 @@ async def test_get_by_id_chat_not_found() -> None:
     chat_repo.get_by_id.assert_awaited_once_with(id=chat_id)
     chunk_buffer_repo.get_all_by_turn_ids.assert_not_awaited()
     cot_repo.create.assert_not_awaited()
-    queue.add.assert_not_awaited()
+    scheduler.add.assert_not_awaited()
     id_generator.gen.assert_not_called()
 
 
@@ -103,14 +106,14 @@ async def test_get_by_id_chat_is_not_from_user() -> None:
 
     cot_repo = mock_chain_of_thought_repository()
     id_generator = mock_id_generator()
-    queue = mock_queue()
+    scheduler = mock_work_scheduler()
 
     use_cases = AgentUseCases(
         chat_repo=chat_repo,
         chunk_buffer_repo=chunk_buffer_repo,
         cot_repo=cot_repo,
         id_generator=id_generator,
-        queue=queue,
+        scheduler=scheduler,
     )
 
     try:
@@ -124,5 +127,5 @@ async def test_get_by_id_chat_is_not_from_user() -> None:
     chat_repo.get_by_id.assert_awaited_once_with(id=existing_chat.id)
     chunk_buffer_repo.get_all_by_turn_ids.assert_not_awaited()
     cot_repo.create.assert_not_awaited()
-    queue.add.assert_not_awaited()
+    scheduler.add.assert_not_awaited()
     id_generator.gen.assert_not_called()

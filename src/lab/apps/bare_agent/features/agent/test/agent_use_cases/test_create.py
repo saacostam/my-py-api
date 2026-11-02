@@ -13,8 +13,11 @@ from lab.apps.bare_agent.features.chat.test import (
     seed_chat,
     seed_turn,
 )
-from lab.apps.bare_agent.shared.adapters.domain import QueueEntry
-from lab.apps.bare_agent.shared.adapters.test import mock_id_generator, mock_queue
+from lab.apps.bare_agent.shared.adapters.domain import AgentWorkEntry
+from lab.apps.bare_agent.shared.adapters.test import (
+    mock_id_generator,
+    mock_work_scheduler,
+)
 
 
 async def test_create_agent_success() -> None:
@@ -53,14 +56,14 @@ async def test_create_agent_success() -> None:
     cot_repo = mock_chain_of_thought_repository()
     cot_repo.create.return_value = created_cot
 
-    queue = mock_queue()
+    scheduler = mock_work_scheduler()
 
     use_cases = AgentUseCases(
         chat_repo=chat_repo,
         chunk_buffer_repo=mock_chunk_buffer_repository(),
         cot_repo=cot_repo,
         id_generator=id_generator,
-        queue=queue,
+        scheduler=scheduler,
     )
 
     result = await use_cases.create(
@@ -73,8 +76,8 @@ async def test_create_agent_success() -> None:
 
     cot_repo.create.assert_awaited_once_with(created_cot)
 
-    queue.add.assert_awaited_once_with(
-        QueueEntry(
+    scheduler.add.assert_awaited_once_with(
+        AgentWorkEntry(
             id="queue-entry-id-123",
             chat_id=created_chat.id,
             cot_id=created_cot.id,

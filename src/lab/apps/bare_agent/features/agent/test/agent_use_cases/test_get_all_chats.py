@@ -5,7 +5,10 @@ from lab.apps.bare_agent.features.chat.test import (
     mock_chunk_buffer_repository,
     seed_chat,
 )
-from lab.apps.bare_agent.shared.adapters.test import mock_id_generator, mock_queue
+from lab.apps.bare_agent.shared.adapters.test import (
+    mock_id_generator,
+    mock_work_scheduler,
+)
 
 
 async def test_get_all_chats_success() -> None:
@@ -24,7 +27,7 @@ async def test_get_all_chats_success() -> None:
         chunk_buffer_repo=mock_chunk_buffer_repository(),
         cot_repo=mock_chain_of_thought_repository(),
         id_generator=mock_id_generator(),
-        queue=mock_queue(),
+        scheduler=mock_work_scheduler(),
     )
 
     result = await use_cases.get_all_chats(user_id=user_id)
@@ -46,7 +49,7 @@ async def test_get_all_chats_empty() -> None:
         chunk_buffer_repo=mock_chunk_buffer_repository(),
         cot_repo=mock_chain_of_thought_repository(),
         id_generator=mock_id_generator(),
-        queue=mock_queue(),
+        scheduler=mock_work_scheduler(),
     )
 
     result = await use_cases.get_all_chats(user_id=user_id)

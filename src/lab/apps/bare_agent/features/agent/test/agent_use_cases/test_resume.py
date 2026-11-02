@@ -13,8 +13,11 @@ from lab.apps.bare_agent.features.chat.test import (
     seed_chat,
     seed_turn,
 )
-from lab.apps.bare_agent.shared.adapters.domain import QueueEntry
-from lab.apps.bare_agent.shared.adapters.test import mock_id_generator, mock_queue
+from lab.apps.bare_agent.shared.adapters.domain import AgentWorkEntry
+from lab.apps.bare_agent.shared.adapters.test import (
+    mock_id_generator,
+    mock_work_scheduler,
+)
 from lab.shared.errors.domain import DomainError, ErrorType
 
 
@@ -50,14 +53,14 @@ async def test_resume_agent_success() -> None:
         "queue-entry-id-123",
     ]
 
-    queue = mock_queue()
+    scheduler = mock_work_scheduler()
 
     use_cases = AgentUseCases(
         chat_repo=chat_repo,
         chunk_buffer_repo=mock_chunk_buffer_repository(),
         cot_repo=cot_repo,
         id_generator=id_generator,
-        queue=queue,
+        scheduler=scheduler,
     )
 
     result = await use_cases.resume(
@@ -83,8 +86,8 @@ async def test_resume_agent_success() -> None:
 
     cot_repo.create.assert_awaited_once_with(created_cot)
 
-    queue.add.assert_awaited_once_with(
-        QueueEntry(
+    scheduler.add.assert_awaited_once_with(
+        AgentWorkEntry(
             id="queue-entry-id-123",
             chat_id=existing_chat.id,
             cot_id=created_cot.id,
@@ -105,14 +108,14 @@ async def test_resume_agent_chat_not_found() -> None:
 
     cot_repo = mock_chain_of_thought_repository()
     id_generator = mock_id_generator()
-    queue = mock_queue()
+    scheduler = mock_work_scheduler()
 
     use_cases = AgentUseCases(
         chat_repo=chat_repo,
         chunk_buffer_repo=mock_chunk_buffer_repository(),
         cot_repo=cot_repo,
         id_generator=id_generator,
-        queue=queue,
+        scheduler=scheduler,
     )
 
     try:
@@ -125,7 +128,7 @@ async def test_resume_agent_chat_not_found() -> None:
 
     chat_repo.get_by_id.assert_awaited_once_with(id=chat_id)
     cot_repo.create.assert_not_awaited()
-    queue.add.assert_not_awaited()
+    scheduler.add.assert_not_awaited()
     id_generator.gen.assert_not_called()
 
 
@@ -139,14 +142,14 @@ async def test_resume_agent_chat_belongs_to_different_user() -> None:
 
     cot_repo = mock_chain_of_thought_repository()
     id_generator = mock_id_generator()
-    queue = mock_queue()
+    scheduler = mock_work_scheduler()
 
     use_cases = AgentUseCases(
         chat_repo=chat_repo,
         chunk_buffer_repo=mock_chunk_buffer_repository(),
         cot_repo=cot_repo,
         id_generator=id_generator,
-        queue=queue,
+        scheduler=scheduler,
     )
 
     try:
@@ -163,5 +166,5 @@ async def test_resume_agent_chat_belongs_to_different_user() -> None:
 
     chat_repo.get_by_id.assert_awaited_once_with(id=existing_chat.id)
     cot_repo.create.assert_not_awaited()
-    queue.add.assert_not_awaited()
+    scheduler.add.assert_not_awaited()
     id_generator.gen.assert_not_called()
