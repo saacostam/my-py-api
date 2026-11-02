@@ -8,6 +8,7 @@ from lab.apps.bare_agent.shared.adapters.domain import (
     Logger,
     PasswordHasher,
     Queue,
+    WorkScheduler,
 )
 
 
@@ -37,3 +38,7 @@ def mock_logger():
 
 def mock_queue():
     return Mock(spec=Queue)
+
+
+def mock_work_scheduler():
+    return Mock(spec=WorkScheduler)
