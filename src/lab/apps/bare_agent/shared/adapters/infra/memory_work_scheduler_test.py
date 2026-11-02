@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 from lab.apps.bare_agent.shared.adapters.domain import (
     AgentWorkEntry,
+    AgentWorkEntryType,
 )
 from lab.apps.bare_agent.shared.adapters.infra.memory_work_scheduler import (
     InMemoryWorkScheduler,
@@ -25,25 +26,25 @@ def make_entry(
     *,
     id: str = "entry-id",
     chat_id: str = "chat-id",
+    cot_id: str = "cot-id",
     turn_id: str = "turn-id",
-    type: str = "response",
-    payload: str = "payload",
-) -> AgentWorkEntry[str]:
+    type: AgentWorkEntryType = "response",
+) -> AgentWorkEntry:
     return AgentWorkEntry(
         id=id,
         chat_id=chat_id,
+        cot_id=cot_id,
         turn_id=turn_id,
-        type=type,  # type: ignore[arg-type]
-        payload=payload,
+        type=type,
     )
 
 
 def make_scheduler(
     *,
     lease_duration: timedelta = timedelta(seconds=10),
-) -> tuple[InMemoryWorkScheduler[AgentWorkEntry[str]], FakeClock]:
+) -> tuple[InMemoryWorkScheduler[AgentWorkEntry], FakeClock]:
     clock = FakeClock()
-    scheduler = InMemoryWorkScheduler[AgentWorkEntry[str]](
+    scheduler = InMemoryWorkScheduler[AgentWorkEntry](
         lease_duration=lease_duration,
         now=clock,
     )

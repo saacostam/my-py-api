@@ -38,12 +38,12 @@ AgentWorkEntryType = Literal["decision", "response"]
 
 
 @dataclass
-class AgentWorkEntry[T]:
+class AgentWorkEntry:
     id: str
     chat_id: str
+    cot_id: str
     turn_id: str
     type: AgentWorkEntryType
-    payload: T
 
 
-type AgentWorkScheduler[T] = WorkScheduler[AgentWorkEntry[T]]
+type AgentWorkScheduler = WorkScheduler[AgentWorkEntry]
