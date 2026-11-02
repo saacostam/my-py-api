@@ -1,3 +1,4 @@
+from functools import reduce
 from unittest.mock import call
 
 import pytest
@@ -18,6 +19,8 @@ from lab.apps.bare_agent.features.chat.domain import (
 from lab.apps.bare_agent.features.chat.test import (
     mock_chat_repository,
     mock_chunk_buffer_repository,
+    seed_chat,
+    seed_turn,
 )
 from lab.apps.bare_agent.shared.adapters.domain import (
     EventCompleted,
@@ -62,24 +65,25 @@ def make_use_cases(
 async def test_response_success() -> None:
     id_generator = mock_id_generator()
 
-    existing_chat = Chat(
-        id="chat-id-123",
-        user_id="public",
-        turns=[
-            Turn(
-                id="user-turn-id-123",
-                type=TurnType.USER,
-                content="Hello",
-                status=TurnStatus.SUCCESS,
-            ),
-            Turn(
-                id="turn-id",
-                type=TurnType.ASSISTANT,
-                content="",
-                status=TurnStatus.PROCESSING,
-            ),
-        ],
+    cot_id = "cot-id-123"
+
+    user_turn = seed_turn(
+        type=TurnType.USER,
+        status=TurnStatus.SUCCESS,
     )
+    assistant_turn = seed_turn(
+        type=TurnType.ASSISTANT,
+        status=TurnStatus.PROCESSING,
+        content="",
+    )
+
+    existing_chat = seed_chat(
+        turns=[
+            user_turn,
+            assistant_turn,
+        ]
+    )
+
     chat_repo = mock_chat_repository()
     chat_repo.get_by_id.return_value = existing_chat
     chat_repo.update.return_value = existing_chat
@@ -88,12 +92,15 @@ async def test_response_success() -> None:
     llm = mock_llm_provider()
     event_emitter = mock_event_emitter()
 
+    chunks = ["Hello", " world"]
+    joined_chunks = reduce(lambda result, current: result + current, chunks)
+
     async def send_side_effect(*, id, event) -> None:
         if isinstance(event, EventCompleted):
             # The final turn state must be persisted before completion is emitted.
             chat_repo.update_turn.assert_awaited_once()
             update_payload = chat_repo.update_turn.await_args.kwargs["turn"]
-            assert update_payload.content == "Hello world"
+            assert update_payload.content == joined_chunks
             assert update_payload.status == TurnStatus.SUCCESS
 
     event_emitter.send.side_effect = send_side_effect
@@ -106,11 +113,11 @@ async def test_response_success() -> None:
                 role=MessageRole.SYSTEM,
                 content="Answer the user's latest message helpfully and accurately.",
             ),
-            Message(role=MessageRole.USER, content="Hello"),
+            Message(role=MessageRole.USER, content=user_turn.content),
         ]
         await onCreated()
-        await onMessage("Hello", 0)
-        await onMessage(" world", 1)
+        for i in range(len(chunks)):
+            await onMessage(chunks[i], i)
         await onCompleted()
 
     llm.stream.side_effect = stream_side_effect
@@ -124,21 +131,21 @@ async def test_response_success() -> None:
     )
 
     await use_cases.response(
-        chat_id="chat-id-123", cot_id="cot-id-123", turn_id="turn-id"
+        chat_id=existing_chat.id, cot_id=cot_id, turn_id=assistant_turn.id
     )
 
-    chat_repo.get_by_id.assert_awaited_once_with(id="chat-id-123")
+    chat_repo.get_by_id.assert_awaited_once_with(id=existing_chat.id)
 
     chat_repo.update_turn.assert_awaited_once()
     update_call = chat_repo.update_turn.await_args
-    assert update_call.kwargs["id"] == "chat-id-123"
-    assert update_call.kwargs["turn_id"] == "turn-id"
-    assert update_call.kwargs["turn"].content == "Hello world"
+    assert update_call.kwargs["id"] == existing_chat.id
+    assert update_call.kwargs["turn_id"] == assistant_turn.id
+    assert update_call.kwargs["turn"].content == joined_chunks
     assert update_call.kwargs["turn"].status == TurnStatus.SUCCESS
 
     assert chunk_buffer_repo.create.await_args_list == [
-        call(Chunk(index=0, turn_id="turn-id", content="Hello")),
-        call(Chunk(index=1, turn_id="turn-id", content=" world")),
+        call(Chunk(index=index, turn_id=assistant_turn.id, content=chunks[index]))
+        for index in range(len(chunks))
     ]
 
     llm.stream.assert_awaited_once_with(
@@ -147,7 +154,7 @@ async def test_response_success() -> None:
                 role=MessageRole.SYSTEM,
                 content="Answer the user's latest message helpfully and accurately.",
             ),
-            Message(role=MessageRole.USER, content="Hello"),
+            Message(role=MessageRole.USER, content=user_turn.content),
         ],
         onCreated=llm.stream.await_args.kwargs["onCreated"],
         onMessage=llm.stream.await_args.kwargs["onMessage"],
@@ -156,16 +163,25 @@ async def test_response_success() -> None:
     )
 
     assert event_emitter.send.await_args_list == [
-        call(id="public", event=EventCreated(turn_id="turn-id")),
         call(
-            id="public",
-            event=EventMessage(content="Hello", turn_id="turn-id", index=0),
+            id=existing_chat.user_id,
+            event=EventCreated(turn_id=assistant_turn.id),
         ),
+        *[
+            call(
+                id=existing_chat.user_id,
+                event=EventMessage(
+                    content=chunks[index],
+                    turn_id=assistant_turn.id,
+                    index=index,
+                ),
+            )
+            for index in range(len(chunks))
+        ],
         call(
-            id="public",
-            event=EventMessage(content=" world", turn_id="turn-id", index=1),
+            id=existing_chat.user_id,
+            event=EventCompleted(turn_id=assistant_turn.id),
         ),
-        call(id="public", event=EventCompleted(turn_id="turn-id")),
     ]
 
 
