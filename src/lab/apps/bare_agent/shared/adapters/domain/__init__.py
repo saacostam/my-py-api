@@ -17,8 +17,19 @@ from .password_hasher import (
     PasswordHasher,
 )
 from .queue import Queue, QueueEntry, QueueEntryType
+from .work_scheduler import (
+    AgentWorkEntry,
+    AgentWorkEntryType,
+    AgentWorkScheduler,
+    Claim,
+    WorkScheduler,
+)
 
 __all__ = [
+    "AgentWorkEntry",
+    "AgentWorkEntryType",
+    "AgentWorkScheduler",
+    "Claim",
     "EventCompleted",
     "EventCreated",
     "EventEmitter",
@@ -37,4 +48,5 @@ __all__ = [
     "QueueEntry",
     "QueueEntryType",
     "TokenPayload",
+    "WorkScheduler",
 ]
