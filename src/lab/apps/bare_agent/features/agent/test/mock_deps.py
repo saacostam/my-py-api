@@ -1,5 +1,8 @@
 from unittest.mock import Mock
 
+from lab.apps.bare_agent.features.agent.app import (
+    AgentUseCases,
+)
 from lab.apps.bare_agent.features.agent.domain import (
     ChainOfThoughtRepository,
 )
@@ -7,3 +10,7 @@ from lab.apps.bare_agent.features.agent.domain import (
 
 def mock_chain_of_thought_repository():
     return Mock(spec=ChainOfThoughtRepository)
+
+
+def mock_agent_use_cases():
+    return Mock(spec=AgentUseCases)
