@@ -16,7 +16,7 @@ from .logger import Logger
 from .password_hasher import (
     PasswordHasher,
 )
-from .queue import Queue, QueueEntry
+from .queue import Queue, QueueEntry, QueueEntryType
 
 __all__ = [
     "EventCompleted",
@@ -35,5 +35,6 @@ __all__ = [
     "PasswordHasher",
     "Queue",
     "QueueEntry",
+    "QueueEntryType",
     "TokenPayload",
 ]
